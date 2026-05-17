@@ -76,19 +76,18 @@ def bust_cache() -> None:
 
 @app.get("/", response_class=HTMLResponse)
 async def page_dashboard(request: Request):
-    return templates.TemplateResponse("dashboard.html", {"request": request, "page": "dashboard"})
+    return templates.TemplateResponse(request, "dashboard.html", {"page": "dashboard"})
 
 
 @app.get("/browse", response_class=HTMLResponse)
 async def page_browse(request: Request):
-    return templates.TemplateResponse("browse.html", {"request": request, "page": "browse"})
+    return templates.TemplateResponse(request, "browse.html", {"page": "browse"})
 
 
 @app.get("/subscriptions", response_class=HTMLResponse)
 async def page_subscriptions(request: Request):
     cfg = load_config()
-    return templates.TemplateResponse("subscriptions.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "subscriptions.html", {
         "page": "subscriptions",
         "subscriptions": cfg.get("subscriptions", []),
         "default_lead": cfg.get("default_lead_time_minutes", 30),
@@ -98,8 +97,8 @@ async def page_subscriptions(request: Request):
 @app.get("/settings", response_class=HTMLResponse)
 async def page_settings(request: Request):
     cfg = load_config()
-    return templates.TemplateResponse("settings.html", {
-        "request": request, "page": "settings", "cfg": cfg,
+    return templates.TemplateResponse(request, "settings.html", {
+        "page": "settings", "cfg": cfg,
     })
 
 
@@ -119,8 +118,8 @@ async def partial_matches(request: Request):
         matches = sorted(find_matches(programmes, subs), key=lambda m: m.programme.start)
     except Exception as exc:
         error = str(exc)
-    return templates.TemplateResponse("partials/matches.html", {
-        "request": request, "matches": matches, "error": error,
+    return templates.TemplateResponse(request, "partials/matches.html", {
+        "matches": matches, "error": error,
     })
 
 
@@ -154,8 +153,7 @@ async def partial_epg(
     except Exception as exc:
         error = str(exc)
 
-    return templates.TemplateResponse("partials/epg_rows.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "partials/epg_rows.html", {
         "programmes": filtered,
         "channels": channels,
         "sports": sports,
@@ -167,8 +165,7 @@ async def partial_epg(
 @app.get("/partial/subscriptions", response_class=HTMLResponse)
 async def partial_subscriptions(request: Request):
     cfg = load_config()
-    return templates.TemplateResponse("partials/sub_rows.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "partials/sub_rows.html", {
         "subscriptions": cfg.get("subscriptions", []),
     })
 
@@ -204,8 +201,8 @@ async def add_subscription(
     subs.append(entry)
     save_config(cfg)
 
-    resp = templates.TemplateResponse("partials/sub_rows.html", {
-        "request": request, "subscriptions": subs,
+    resp = templates.TemplateResponse(request, "partials/sub_rows.html", {
+        "subscriptions": subs,
     })
     resp.headers["X-Toast"] = f"Added: {label}"
     return resp
@@ -219,8 +216,8 @@ async def delete_subscription(request: Request, idx: int):
     if 0 <= idx < len(subs):
         label = subs.pop(idx).get("label", "")
         save_config(cfg)
-    resp = templates.TemplateResponse("partials/sub_rows.html", {
-        "request": request, "subscriptions": subs,
+    resp = templates.TemplateResponse(request, "partials/sub_rows.html", {
+        "subscriptions": subs,
     })
     resp.headers["X-Toast"] = f"Removed: {label}"
     return resp

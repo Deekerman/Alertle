@@ -1,0 +1,42 @@
+services:
+
+  # ── Web UI ─────────────────────────────────────────────────────────────
+  web:
+    build: .
+    container_name: epg-notifier
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8888}:8888"
+    volumes:
+      - ./config.yaml:/app/config.yaml          # edit this file to configure
+      - epg-data:/app                            # persists the SQLite database
+    environment:
+      - TZ=${TZ:-America/New_York}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8888/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ── Background scanner ─────────────────────────────────────────────────
+  # Scans the EPG and fires notifications on a schedule.
+  # The interval is controlled by poll_interval_seconds in config.yaml.
+  # Comment this service out if you prefer to trigger scans manually
+  # via the "Scan Now" button in the web UI.
+  scanner:
+    build: .
+    container_name: epg-notifier-scanner
+    restart: unless-stopped
+    command: ["python", "main.py", "--daemon"]
+    volumes:
+      - ./config.yaml:/app/config.yaml
+      - epg-data:/app
+    environment:
+      - TZ=${TZ:-America/New_York}
+    depends_on:
+      web:
+        condition: service_healthy
+
+volumes:
+  epg-data:

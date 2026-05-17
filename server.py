@@ -53,13 +53,18 @@ _epg_cache: Optional[tuple[float, list[Programme]]] = None
 EPG_CACHE_TTL = 300
 
 
+def make_client(cfg: dict) -> DispatcharrClient:
+    d = cfg["dispatcharr"]
+    return DispatcharrClient(d["url"], d.get("token", ""), d.get("xmltv_url", ""))
+
+
 def get_programmes(cfg: dict) -> list[Programme]:
     global _epg_cache
     now = time.monotonic()
     if _epg_cache and (now - _epg_cache[0]) < EPG_CACHE_TTL:
         return _epg_cache[1]
     d = cfg["dispatcharr"]
-    client = DispatcharrClient(d["url"], d["token"])
+    client = make_client(cfg)
     dt_now = datetime.now(timezone.utc)
     end = dt_now + timedelta(days=d.get("lookahead_days", 7))
     programmes = client.fetch_programmes(dt_now, end)
@@ -231,9 +236,8 @@ async def probe_dispatcharr(request: Request):
     d = cfg.get("dispatcharr", {})
     if not d.get("url"):
         return HTMLResponse('<p class="text-yellow-400 text-sm">No URL configured yet.</p>')
-    token = d.get("token", "")
     try:
-        client = DispatcharrClient(d["url"], token)
+        client = make_client(cfg)
         results = client.probe_api()
     except Exception as exc:
         return HTMLResponse(f'<p class="text-red-400 text-sm">Probe failed: {exc}</p>')
@@ -276,6 +280,7 @@ async def save_settings(request: Request):
     d = cfg.setdefault("dispatcharr", {})
     d["url"] = form.get("dispatcharr_url", "").strip()
     d["token"] = form.get("dispatcharr_token", "").strip()
+    d["xmltv_url"] = form.get("xmltv_url", "").strip()
     try:
         d["lookahead_days"] = int(form.get("lookahead_days", 7))
     except ValueError:

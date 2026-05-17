@@ -29,8 +29,9 @@ class Programme:
 
 
 class DispatcharrClient:
-    def __init__(self, url: str, token: str):
+    def __init__(self, url: str, token: str, xmltv_url: str = ""):
         self.base = url.rstrip("/")
+        self.xmltv_url = xmltv_url.strip()  # direct URL overrides all path guessing
         self.session = requests.Session()
         self.session.headers.update({"Authorization": f"Bearer {token}"})
 
@@ -40,7 +41,7 @@ class DispatcharrClient:
 
     def fetch_programmes(self, start: datetime, stop: datetime) -> list[Programme]:
         """Return all programmes between *start* and *stop* (UTC datetimes)."""
-        root = self._fetch_xmltv()
+        root = self._fetch_direct() if self.xmltv_url else self._fetch_xmltv()
         channels = self._parse_channels(root)
         programmes = self._parse_programmes(root, channels, start, stop)
         log.info("Fetched %d programmes from Dispatcharr EPG", len(programmes))
@@ -70,6 +71,41 @@ class DispatcharrClient:
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    def _fetch_direct(self) -> ET.Element:
+        """Fetch XMLTV from the exact URL the user configured."""
+        try:
+            resp = self.session.get(self.xmltv_url, timeout=60)
+        except requests.RequestException as exc:
+            raise RuntimeError(f"Request to {self.xmltv_url} failed: {exc}") from exc
+
+        if resp.status_code != 200:
+            raise RuntimeError(
+                f"EPG URL returned HTTP {resp.status_code}: {self.xmltv_url}"
+            )
+
+        content = resp.content
+        snippet = content[:300].decode("utf-8", errors="replace").strip()
+
+        if not content or not snippet:
+            raise RuntimeError(f"EPG URL returned an empty response: {self.xmltv_url}")
+
+        if content.lstrip()[:1] in (b"{", b"["):
+            return self._json_to_xmltv(json.loads(content))
+
+        if content.lstrip()[:1] not in (b"<",):
+            raise RuntimeError(
+                f"EPG URL did not return XML or JSON.\n"
+                f"Response starts with: {snippet[:200]}"
+            )
+
+        try:
+            return ET.fromstring(content)
+        except ET.ParseError as exc:
+            raise RuntimeError(
+                f"EPG URL returned invalid XML ({exc}).\n"
+                f"Response starts with: {snippet[:200]}"
+            ) from exc
 
     @staticmethod
     def _candidate_paths() -> list[str]:

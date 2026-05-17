@@ -25,10 +25,23 @@
                  placeholder="http://localhost:8080" />
         </div>
         <div class="col-span-2">
-          <label class="block text-xs text-gray-400 mb-1.5">API Token</label>
+          <label class="block text-xs text-gray-400 mb-1.5">API Token <span class="text-gray-600 font-normal">(optional)</span></label>
           <input name="dispatcharr_token" class="field" type="password"
                  value="{{ cfg.get('dispatcharr', {}).get('token', '') }}"
                  placeholder="Bearer token from Dispatcharr settings" />
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs text-gray-400 mb-1.5">
+            Direct XMLTV URL
+            <span class="text-gray-600 font-normal ml-1">— paste the exact URL from Dispatcharr → Output</span>
+          </label>
+          <input name="xmltv_url" class="field"
+                 value="{{ cfg.get('dispatcharr', {}).get('xmltv_url', '') }}"
+                 placeholder="e.g. http://192.168.1.19:9191/output/epg/Everything" />
+          <p class="text-[10px] text-gray-600 mt-1">
+            When set, this URL is used directly for the EPG feed and overrides all automatic path detection.
+            Leave blank to use auto-detection.
+          </p>
         </div>
         <div>
           <label class="block text-xs text-gray-400 mb-1.5">Lookahead (days)</label>

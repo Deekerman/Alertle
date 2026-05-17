@@ -1,78 +1,93 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="px-8 py-7">
-
-  <!-- Header -->
-  <div class="flex items-center justify-between mb-7">
-    <div>
-      <h2 class="text-xl font-semibold text-white">Subscriptions</h2>
-      <p class="text-sm text-gray-500 mt-0.5">Rules that trigger notifications for matching EPG events</p>
-    </div>
+<div class="px-8 pt-8 pb-6 border-b border-border flex items-center justify-between">
+  <div>
+    <h1 class="text-lg font-semibold text-white">Subscriptions</h1>
+    <p class="text-sm text-muted mt-0.5">Rules that trigger notifications for matching EPG events</p>
   </div>
+</div>
+
+<div class="px-8 py-6 space-y-5">
 
   <!-- Add form -->
-  <div class="card mb-6" x-data="{ open: false }">
-    <button
-      @click="open = !open"
-      class="flex items-center gap-2 text-sm font-medium text-indigo-400 hover:text-indigo-300 transition-colors"
-    >
-      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-           :class="open ? 'rotate-45' : ''" style="transition: transform 150ms">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-      </svg>
-      <span x-text="open ? 'Cancel' : 'Add Subscription'"></span>
+  <div class="card" x-data="{ open: false }">
+    <button @click="open = !open"
+            class="w-full flex items-center justify-between text-sm">
+      <span class="flex items-center gap-2 font-medium"
+            :class="open ? 'text-white' : 'text-indigo-400 hover:text-indigo-300'">
+        <svg class="w-4 h-4 transition-transform duration-150" :class="open ? 'rotate-45' : ''"
+             fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+        </svg>
+        <span x-text="open ? 'Cancel' : 'New Subscription'"></span>
+      </span>
+      <span x-show="!open" class="text-xs text-muted">Define a rule to match EPG events</span>
     </button>
 
-    <div x-show="open" x-cloak x-transition class="mt-5">
+    <div x-show="open" x-cloak x-transition:enter="transition ease-out duration-150"
+         x-transition:enter-start="opacity-0 -translate-y-1"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         class="mt-5 pt-5 border-t border-border">
       <form
         hx-post="/partial/subscriptions"
         hx-target="#sub-list"
         hx-swap="outerHTML"
         @htmx:after-request="if($event.detail.successful){ open = false; $el.reset(); }"
-        class="grid grid-cols-2 gap-4"
       >
-        <div class="col-span-2 md:col-span-1">
-          <label class="block text-xs text-gray-400 mb-1.5">Label <span class="text-red-400">*</span></label>
-          <input name="label" required class="field" placeholder="e.g. All NFL games" />
+        <!-- Row 1: Label + Sport -->
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="form-label">Label <span class="text-red-400 font-normal">*</span></label>
+            <input name="label" required class="field" placeholder="e.g. All NFL games" />
+          </div>
+          <div>
+            <label class="form-label">Sport / Category</label>
+            <input name="sport" class="field" placeholder="e.g. american football" />
+          </div>
         </div>
-        <div>
-          <label class="block text-xs text-gray-400 mb-1.5">Sport / Category</label>
-          <input name="sport" class="field" placeholder="e.g. american football" />
+
+        <!-- Row 2: Team + Keyword -->
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="form-label">Team</label>
+            <input name="team" class="field" placeholder="e.g. Cowboys" />
+            <p class="form-hint">Matches either team in "A vs B" titles</p>
+          </div>
+          <div>
+            <label class="form-label">Keyword</label>
+            <input name="keyword" class="field" placeholder="e.g. Champions League" />
+          </div>
         </div>
-        <div>
-          <label class="block text-xs text-gray-400 mb-1.5">Team name</label>
-          <input name="team" class="field" placeholder="e.g. Cowboys" />
+
+        <!-- Row 3: Channel + Lead time -->
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="form-label">Channel</label>
+            <input name="channel" class="field" placeholder="e.g. ESPN" />
+          </div>
+          <div>
+            <label class="form-label">Lead time (minutes)</label>
+            <input name="lead_time_minutes" type="number" min="0" class="field"
+                   placeholder="Default: {{ default_lead }}" />
+          </div>
         </div>
-        <div>
-          <label class="block text-xs text-gray-400 mb-1.5">Keyword</label>
-          <input name="keyword" class="field" placeholder="e.g. Champions League" />
+
+        <!-- Row 4: Exclude -->
+        <div class="mb-4">
+          <label class="form-label">Exclude keywords</label>
+          <input name="exclude" class="field" placeholder="e.g. Women's, U20, highlights, replay" />
+          <p class="form-hint">Comma-separated — any match blocks the notification</p>
         </div>
-        <div>
-          <label class="block text-xs text-gray-400 mb-1.5">Channel</label>
-          <input name="channel" class="field" placeholder="e.g. ESPN" />
-        </div>
-        <div>
-          <label class="block text-xs text-gray-400 mb-1.5">Lead time (min)</label>
-          <input name="lead_time_minutes" type="number" min="0" class="field"
-                 placeholder="Default: {{ default_lead }}" />
-        </div>
-        <div class="col-span-2">
-          <label class="block text-xs text-gray-400 mb-1.5">Exclude keywords
-            <span class="text-gray-600 font-normal ml-1">— comma-separated; any match blocks the notification</span>
+
+        <!-- Row 5: Options + Submit -->
+        <div class="flex items-center justify-between pt-2">
+          <label class="flex items-center gap-2.5 cursor-pointer select-none">
+            <input type="checkbox" name="require_sport" value="on" class="toggle" />
+            <span class="text-xs text-gray-300">Require sports category
+              <span class="text-muted font-normal"> — blocks movies &amp; shows when using team filter</span>
+            </span>
           </label>
-          <input name="exclude" class="field" placeholder="e.g. Women's, U20, highlights" />
-        </div>
-        <div class="col-span-2 flex items-center gap-3">
-          <label class="flex items-center gap-2 cursor-pointer select-none">
-            <input type="checkbox" name="require_sport" value="on"
-                   class="w-4 h-4 rounded bg-surface border-border text-indigo-600" />
-            <span class="text-xs text-gray-400">Require sports category</span>
-          </label>
-          <p class="text-xs text-gray-600">Blocks non-sport content (movies, shows) when using a team filter</p>
-        </div>
-        <div class="col-span-2 flex items-center justify-between mt-1">
-          <p class="text-xs text-gray-600">All non-empty match fields are AND-ed. At least one of sport / team / keyword required.</p>
           <button type="submit" class="btn-primary ml-4 shrink-0">Add</button>
         </div>
       </form>

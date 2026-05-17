@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="flex h-screen overflow-hidden" x-data>
+
+  <!-- ── EPG list (scrollable) ──────────────────────────────────────────── -->
+  <div class="flex-1 flex flex-col overflow-hidden">
+
+    <!-- Page header -->
+    <div class="px-8 pt-7 pb-4 border-b border-border shrink-0">
+      <h2 class="text-xl font-semibold text-white">Browse EPG</h2>
+      <p class="text-sm text-gray-500 mt-0.5">Click Subscribe on any event to add it to your watch list</p>
+    </div>
+
+    <!-- Content area (loads via HTMX) -->
+    <div
+      id="epg-content"
+      class="flex-1 overflow-auto px-8 py-5"
+      hx-get="/partial/epg"
+      hx-trigger="load"
+      hx-swap="innerHTML"
+    >
+      <div class="flex items-center justify-center py-20 text-gray-600">
+        <svg class="animate-spin w-6 h-6 mr-3" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+        </svg>
+        <span class="text-sm">Fetching EPG…</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Subscribe panel (right side) ──────────────────────────────────── -->
+  <div
+    x-show="$store.subPanel.open"
+    x-cloak
+    x-transition:enter="transition ease-out duration-200"
+    x-transition:enter-start="translate-x-full"
+    x-transition:enter-end="translate-x-0"
+    x-transition:leave="transition ease-in duration-150"
+    x-transition:leave-start="translate-x-0"
+    x-transition:leave-end="translate-x-full"
+    class="w-80 shrink-0 bg-panel border-l border-border flex flex-col overflow-auto"
+  >
+    <!-- Panel header -->
+    <div class="flex items-center justify-between px-5 py-4 border-b border-border">
+      <h3 class="font-semibold text-white text-sm">Add Subscription</h3>
+      <button @click="$store.subPanel.close()" class="text-gray-500 hover:text-gray-300">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Panel form -->
+    <form
+      hx-post="/partial/subscriptions"
+      hx-target="#sub-panel-result"
+      hx-swap="innerHTML"
+      @htmx:after-request="if($event.detail.successful){ $store.subPanel.close(); $el.reset(); }"
+      class="flex-1 px-5 py-5 space-y-4"
+    >
+      <div>
+        <label class="block text-xs text-gray-400 mb-1.5">Label <span class="text-red-400">*</span></label>
+        <input name="label" :value="$store.subPanel.label" required class="field" placeholder="e.g. Cowboys games" />
+      </div>
+      <div>
+        <label class="block text-xs text-gray-400 mb-1.5">Sport / Category</label>
+        <input name="sport" :value="$store.subPanel.sport" class="field" placeholder="e.g. american football" />
+        <p class="text-[10px] text-gray-600 mt-1">Match against EPG category</p>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-400 mb-1.5">Team</label>
+        <input name="team" :value="$store.subPanel.team" class="field" placeholder="e.g. Cowboys" />
+        <p class="text-[10px] text-gray-600 mt-1">Substring match in title/description</p>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-400 mb-1.5">Keyword</label>
+        <input name="keyword" :value="$store.subPanel.keyword" class="field" placeholder="e.g. Champions League" />
+      </div>
+      <div>
+        <label class="block text-xs text-gray-400 mb-1.5">Channel</label>
+        <input name="channel" :value="$store.subPanel.channel" class="field" placeholder="e.g. ESPN" />
+      </div>
+      <div>
+        <label class="block text-xs text-gray-400 mb-1.5">Lead time (minutes)</label>
+        <input name="lead_time_minutes" :value="$store.subPanel.lead" class="field" type="number" min="0" placeholder="Default from settings" />
+      </div>
+
+      <p class="text-[10px] text-gray-600">Fill at least one of sport / team / keyword.</p>
+
+      <button type="submit" class="btn-primary w-full text-center">Add Subscription</button>
+    </form>
+    <div id="sub-panel-result" class="px-5 pb-5 text-sm text-green-400"></div>
+  </div>
+
+</div>
+{% endblock %}

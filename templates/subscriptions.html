@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="px-8 py-7">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-7">
+    <div>
+      <h2 class="text-xl font-semibold text-white">Subscriptions</h2>
+      <p class="text-sm text-gray-500 mt-0.5">Rules that trigger notifications for matching EPG events</p>
+    </div>
+  </div>
+
+  <!-- Add form -->
+  <div class="card mb-6" x-data="{ open: false }">
+    <button
+      @click="open = !open"
+      class="flex items-center gap-2 text-sm font-medium text-indigo-400 hover:text-indigo-300 transition-colors"
+    >
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+           :class="open ? 'rotate-45' : ''" style="transition: transform 150ms">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      <span x-text="open ? 'Cancel' : 'Add Subscription'"></span>
+    </button>
+
+    <div x-show="open" x-cloak x-transition class="mt-5">
+      <form
+        hx-post="/partial/subscriptions"
+        hx-target="#sub-list"
+        hx-swap="outerHTML"
+        @htmx:after-request="if($event.detail.successful){ open = false; $el.reset(); }"
+        class="grid grid-cols-2 gap-4"
+      >
+        <div class="col-span-2 md:col-span-1">
+          <label class="block text-xs text-gray-400 mb-1.5">Label <span class="text-red-400">*</span></label>
+          <input name="label" required class="field" placeholder="e.g. All NFL games" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1.5">Sport / Category</label>
+          <input name="sport" class="field" placeholder="e.g. american football" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1.5">Team name</label>
+          <input name="team" class="field" placeholder="e.g. Cowboys" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1.5">Keyword</label>
+          <input name="keyword" class="field" placeholder="e.g. Champions League" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1.5">Channel</label>
+          <input name="channel" class="field" placeholder="e.g. ESPN" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1.5">Lead time (min)</label>
+          <input name="lead_time_minutes" type="number" min="0" class="field"
+                 placeholder="Default: {{ default_lead }}" />
+        </div>
+        <div class="col-span-2 flex items-center justify-between mt-1">
+          <p class="text-xs text-gray-600">All non-empty fields must match (AND logic). At least one of sport / team / keyword required.</p>
+          <button type="submit" class="btn-primary ml-4 shrink-0">Add</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Subscription list -->
+  <div id="sub-list">
+    {% include "partials/sub_rows.html" %}
+  </div>
+
+</div>
+{% endblock %}

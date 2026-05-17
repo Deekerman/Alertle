@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="px-8 py-7 max-w-3xl">
+
+  <div class="mb-7">
+    <h2 class="text-xl font-semibold text-white">Settings</h2>
+    <p class="text-sm text-gray-500 mt-0.5">Dispatcharr connection and notification channels</p>
+  </div>
+
+  <form
+    hx-post="/action/settings"
+    hx-swap="none"
+    class="space-y-7"
+  >
+
+    <!-- ── Dispatcharr ──────────────────────────────────────────────────── -->
+    <div class="card space-y-4">
+      <h3 class="font-semibold text-white text-sm">Dispatcharr</h3>
+      <div class="grid grid-cols-2 gap-4">
+        <div class="col-span-2">
+          <label class="block text-xs text-gray-400 mb-1.5">URL</label>
+          <input name="dispatcharr_url" class="field"
+                 value="{{ cfg.get('dispatcharr', {}).get('url', '') }}"
+                 placeholder="http://localhost:8080" />
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs text-gray-400 mb-1.5">API Token</label>
+          <input name="dispatcharr_token" class="field" type="password"
+                 value="{{ cfg.get('dispatcharr', {}).get('token', '') }}"
+                 placeholder="Bearer token from Dispatcharr settings" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1.5">Lookahead (days)</label>
+          <input name="lookahead_days" class="field" type="number" min="1" max="30"
+                 value="{{ cfg.get('dispatcharr', {}).get('lookahead_days', 7) }}" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1.5">Default lead time (min)</label>
+          <input name="default_lead_time_minutes" class="field" type="number" min="0"
+                 value="{{ cfg.get('default_lead_time_minutes', 30) }}" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1.5">Daemon poll interval (sec)</label>
+          <input name="poll_interval_seconds" class="field" type="number" min="60"
+                 value="{{ cfg.get('poll_interval_seconds', 3600) }}" />
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Notification channels ────────────────────────────────────────── -->
+    {% set notifs = cfg.get('notifications', {}) %}
+
+    <!-- Helper macro for the enable toggle -->
+    {% macro toggle(channel_key) %}
+    {% set ch = notifs.get(channel_key, {}) %}
+    <label class="relative inline-flex items-center cursor-pointer">
+      <input type="checkbox" name="{{ channel_key }}_enabled" value="on"
+             class="sr-only peer" {% if ch.get('enabled') %}checked{% endif %}>
+      <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer
+                  peer-checked:after:translate-x-full after:content-['']
+                  after:absolute after:top-0.5 after:left-[2px] after:bg-white
+                  after:rounded-full after:h-4 after:w-4 after:transition-all
+                  peer-checked:bg-indigo-600"></div>
+    </label>
+    {% endmacro %}
+
+    <!-- Telegram -->
+    {% set tg = notifs.get('telegram', {}) %}
+    <div class="card space-y-4" x-data="{ open: {{ 'true' if tg.get('enabled') else 'false' }} }">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          {{ toggle('telegram') }}
+          <h3 class="font-semibold text-white text-sm">Telegram</h3>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button"
+            hx-post="/action/test/telegram"
+            hx-swap="none"
+            class="btn-ghost text-xs">Test</button>
+          <button type="button" @click="open = !open" class="text-gray-600 hover:text-gray-400 text-xs">
+            <span x-text="open ? '▲' : '▼'"></span>
+          </button>
+        </div>
+      </div>
+      <div x-show="open" x-cloak class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs text-gray-400 mb-1.5">Bot Token</label>
+          <input name="telegram_bot_token" class="field" type="password"
+                 value="{{ tg.get('bot_token', '') }}" placeholder="123456:ABC..." />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1.5">Chat ID</label>
+          <input name="telegram_chat_id" class="field"
+                 value="{{ tg.get('chat_id', '') }}" placeholder="-1001234567890" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Pushover -->
+    {% set po = notifs.get('pushover', {}) %}
+    <div class="card space-y-4" x-data="{ open: {{ 'true' if po.get('enabled') else 'false' }} }">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          {{ toggle('pushover') }}
+          <h3 class="font-semibold text-white text-sm">Pushover</h3>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" hx-post="/action/test/pushover" hx-swap="none" class="btn-ghost text-xs">Test</button>
+          <button type="button" @click="open = !open" class="text-gray-600 hover:text-gray-400 text-xs">
+            <span x-text="open ? '▲' : '▼'"></span>
+          </button>
+        </div>
+      </div>
+      <div x-show="open" x-cloak class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs text-gray-400 mb-1.5">App Token</label>
+          <input name="pushover_app_token" class="field" type="password"
+                 value="{{ po.get('app_token', '') }}" placeholder="App token" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1.5">User Key</label>
+          <input name="pushover_user_key" class="field" type="password"
+                 value="{{ po.get('user_key', '') }}" placeholder="User key" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Ntfy -->
+    {% set nt = notifs.get('ntfy', {}) %}
+    <div class="card space-y-4" x-data="{ open: {{ 'true' if nt.get('enabled') else 'false' }} }">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          {{ toggle('ntfy') }}
+          <h3 class="font-semibold text-white text-sm">Ntfy</h3>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" hx-post="/action/test/ntfy" hx-swap="none" class="btn-ghost text-xs">Test</button>
+          <button type="button" @click="open = !open" class="text-gray-600 hover:text-gray-400 text-xs">
+            <span x-text="open ? '▲' : '▼'"></span>
+          </button>
+        </div>
+      </div>
+      <div x-show="open" x-cloak class="grid grid-cols-3 gap-4">
+        <div>
+          <label class="block text-xs text-gray-400 mb-1.5">Server URL</label>
+          <input name="ntfy_url" class="field"
+                 value="{{ nt.get('url', 'https://ntfy.sh') }}" placeholder="https://ntfy.sh" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1.5">Topic</label>
+          <input name="ntfy_topic" class="field"
+                 value="{{ nt.get('topic', '') }}" placeholder="epg-sports" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1.5">Token (optional)</label>
+          <input name="ntfy_token" class="field" type="password"
+                 value="{{ nt.get('token', '') }}" placeholder="Private topic token" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Discord -->
+    {% set dc = notifs.get('discord', {}) %}
+    <div class="card space-y-4" x-data="{ open: {{ 'true' if dc.get('enabled') else 'false' }} }">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          {{ toggle('discord') }}
+          <h3 class="font-semibold text-white text-sm">Discord</h3>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" hx-post="/action/test/discord" hx-swap="none" class="btn-ghost text-xs">Test</button>
+          <button type="button" @click="open = !open" class="text-gray-600 hover:text-gray-400 text-xs">
+            <span x-text="open ? '▲' : '▼'"></span>
+          </button>
+        </div>
+      </div>
+      <div x-show="open" x-cloak>
+        <label class="block text-xs text-gray-400 mb-1.5">Webhook URL</label>
+        <input name="discord_webhook_url" class="field"
+               value="{{ dc.get('webhook_url', '') }}" placeholder="https://discord.com/api/webhooks/…" />
+      </div>
+    </div>
+
+    <!-- SMTP -->
+    {% set sm = notifs.get('smtp', {}) %}
+    <div class="card space-y-4" x-data="{ open: {{ 'true' if sm.get('enabled') else 'false' }} }">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          {{ toggle('smtp') }}
+          <h3 class="font-semibold text-white text-sm">Email / SMTP</h3>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" hx-post="/action/test/smtp" hx-swap="none" class="btn-ghost text-xs">Test</button>
+          <button type="button" @click="open = !open" class="text-gray-600 hover:text-gray-400 text-xs">
+            <span x-text="open ? '▲' : '▼'"></span>
+          </button>
+        </div>
+      </div>
+      <div x-show="open" x-cloak class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs text-gray-400 mb-1.5">Host</label>
+          <input name="smtp_host" class="field" value="{{ sm.get('host', '') }}" placeholder="smtp.example.com" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1.5">Port</label>
+          <input name="smtp_port" class="field" type="number" value="{{ sm.get('port', 587) }}" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1.5">Username</label>
+          <input name="smtp_username" class="field" value="{{ sm.get('username', '') }}" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1.5">Password</label>
+          <input name="smtp_password" class="field" type="password" value="{{ sm.get('password', '') }}" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1.5">From</label>
+          <input name="smtp_from_addr" class="field" value="{{ sm.get('from_addr', '') }}" placeholder="you@example.com" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1.5">To (one per line)</label>
+          <textarea name="smtp_to_addrs" class="field" rows="2"
+            placeholder="recipient@example.com">{{ sm.get('to_addrs', [])|join('\n') }}</textarea>
+        </div>
+        <div class="col-span-2 flex items-center gap-2">
+          <input type="checkbox" name="smtp_use_tls" value="on" id="smtp_tls"
+                 {% if sm.get('use_tls', true) %}checked{% endif %}
+                 class="w-4 h-4 rounded bg-surface border-border text-indigo-600" />
+          <label for="smtp_tls" class="text-xs text-gray-400">Use STARTTLS</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Save -->
+    <div class="flex justify-end">
+      <button type="submit" class="btn-primary px-8">Save Settings</button>
+    </div>
+
+  </form>
+</div>
+{% endblock %}

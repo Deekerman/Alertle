@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="px-8 py-7">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-7">
+    <div>
+      <h2 class="text-xl font-semibold text-white">Dashboard</h2>
+      <p class="text-sm text-gray-500 mt-0.5">Upcoming matched events for the next 7 days</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <!-- Scan Now -->
+      <div class="flex items-center gap-2">
+        <button
+          hx-post="/action/scan"
+          hx-target="#scan-status"
+          hx-swap="innerHTML"
+          class="btn-primary flex items-center gap-2"
+        >
+          <svg class="w-4 h-4 htmx-indicator" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+          Scan Now
+        </button>
+        <span id="scan-status" class="text-sm text-gray-500"></span>
+      </div>
+      <!-- Refresh matches -->
+      <button
+        hx-get="/partial/matches"
+        hx-target="#matches-area"
+        hx-swap="innerHTML"
+        class="btn-ghost flex items-center gap-1.5"
+      >
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <!-- Matches area -->
+  <div
+    id="matches-area"
+    hx-get="/partial/matches"
+    hx-trigger="load"
+    hx-swap="innerHTML"
+  >
+    <!-- Loading state -->
+    <div class="flex items-center justify-center py-20 text-gray-600">
+      <svg class="animate-spin w-6 h-6 mr-3" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+      </svg>
+      <span class="text-sm">Fetching EPG…</span>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

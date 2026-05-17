@@ -1,0 +1,54 @@
+<div id="sub-list">
+{% if not subscriptions %}
+<div class="card text-center py-12">
+  <p class="text-4xl mb-4">☆</p>
+  <p class="text-gray-400 font-medium">No subscriptions yet</p>
+  <p class="text-sm text-gray-600 mt-1">Add one above or click Subscribe on any event in the Browse EPG page.</p>
+</div>
+{% else %}
+<div class="card p-0 overflow-hidden">
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="border-b border-border text-left">
+        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Label</th>
+        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Sport</th>
+        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Team</th>
+        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Keyword</th>
+        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Channel</th>
+        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Lead</th>
+        <th class="px-4 py-3 w-12"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-border">
+      {% for sub in subscriptions %}
+      <tr class="hover:bg-white/[0.02] group">
+        <td class="px-4 py-3 font-medium text-white">{{ sub.label }}</td>
+        <td class="px-4 py-3 text-gray-400 text-xs">
+          {% if sub.sport %}<span class="tag bg-blue-900/40 text-blue-300">{{ sub.sport }}</span>{% else %}<span class="text-gray-600">—</span>{% endif %}
+        </td>
+        <td class="px-4 py-3 text-gray-400 text-xs">
+          {% if sub.team %}<span class="tag bg-green-900/40 text-green-300">{{ sub.team }}</span>{% else %}<span class="text-gray-600">—</span>{% endif %}
+        </td>
+        <td class="px-4 py-3 text-gray-400 text-xs">
+          {% if sub.keyword %}<span class="tag bg-yellow-900/40 text-yellow-300">{{ sub.keyword }}</span>{% else %}<span class="text-gray-600">—</span>{% endif %}
+        </td>
+        <td class="px-4 py-3 text-gray-500 text-xs">{{ sub.channel or '—' }}</td>
+        <td class="px-4 py-3 text-gray-500 text-xs text-right">
+          {% if sub.lead_time_minutes is defined %}{{ sub.lead_time_minutes }} min{% else %}default{% endif %}
+        </td>
+        <td class="px-4 py-3 text-right">
+          <button
+            hx-delete="/partial/subscriptions/{{ loop.index0 }}"
+            hx-target="#sub-list"
+            hx-swap="outerHTML"
+            hx-confirm="Remove '{{ sub.label }}'?"
+            class="btn-danger text-xs opacity-0 group-hover:opacity-100"
+          >Remove</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+</div>

@@ -94,9 +94,17 @@ class Subscription:
 
         if self.team:
             team_l = self.team.lower()
-            if team_l not in text:
-                teams = extract_teams(prog.title)
-                if not (teams and any(team_l in t.lower() for t in teams)):
+            teams = extract_teams(prog.title)
+            if teams:
+                # "A vs B" title — team must be one of the two sides
+                if not any(team_l in t.lower() for t in teams):
+                    return False
+            else:
+                # Non-vs title — require a sport category so "Real American Cowboys"
+                # or similar reality shows don't match a team subscription
+                if not any("sport" in cat.lower() for cat in prog.categories):
+                    return False
+                if team_l not in text:
                     return False
 
         if self.keyword:

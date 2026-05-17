@@ -1,9 +1,10 @@
 """Fetch and parse EPG data from Dispatcharr."""
 
+import json
 import logging
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import requests
@@ -20,7 +21,6 @@ class Programme:
     stop: datetime
     description: str = ""
     categories: list[str] = field(default_factory=list)
-    # Unique key used for deduplication in storage
     uid: str = ""
 
     def __post_init__(self):
@@ -40,45 +40,167 @@ class DispatcharrClient:
 
     def fetch_programmes(self, start: datetime, stop: datetime) -> list[Programme]:
         """Return all programmes between *start* and *stop* (UTC datetimes)."""
-        xmltv = self._fetch_xmltv()
-        channels = self._parse_channels(xmltv)
-        programmes = self._parse_programmes(xmltv, channels, start, stop)
+        root = self._fetch_xmltv()
+        channels = self._parse_channels(root)
+        programmes = self._parse_programmes(root, channels, start, stop)
         log.info("Fetched %d programmes from Dispatcharr EPG", len(programmes))
         return programmes
+
+    def probe_api(self) -> dict:
+        """
+        Return a dict describing what the Dispatcharr API looks like at the
+        configured base URL. Used by the web UI to help diagnose connection issues.
+        """
+        results = {}
+        for path in self._candidate_paths():
+            url = self.base + path
+            try:
+                r = self.session.get(url, timeout=10)
+                snippet = r.text[:200].replace("\n", " ")
+                results[path] = {"status": r.status_code, "snippet": snippet}
+            except Exception as exc:
+                results[path] = {"status": None, "error": str(exc)}
+        return results
 
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _fetch_xmltv(self) -> ET.Element:
-        """Download the XMLTV EPG from Dispatcharr and return the root element."""
-        # Dispatcharr exposes its combined EPG at /api/epg/xmltv/
-        # Try the most common endpoint patterns.
-        endpoints = [
+    @staticmethod
+    def _candidate_paths() -> list[str]:
+        return [
             "/api/epg/xmltv/",
+            "/api/epg/xmltv",
+            "/epg/xmltv/",
             "/epg/xmltv",
+            "/xmltv/",
             "/xmltv",
+            "/api/xmltv/",
+            "/api/xmltv",
         ]
-        last_error: Optional[Exception] = None
-        for path in endpoints:
+
+    def _fetch_xmltv(self) -> ET.Element:
+        """Try each candidate endpoint and return the first that parses as XMLTV."""
+        last_exc: Optional[Exception] = None
+
+        for path in self._candidate_paths():
             url = self.base + path
             try:
                 resp = self.session.get(url, timeout=60)
-                if resp.status_code == 200:
-                    log.debug("EPG fetched from %s (%d bytes)", url, len(resp.content))
-                    return ET.fromstring(resp.content)
-                log.debug("EPG endpoint %s returned %d", url, resp.status_code)
             except requests.RequestException as exc:
-                last_error = exc
-                log.debug("EPG endpoint %s failed: %s", url, exc)
+                last_exc = exc
+                log.debug("EPG endpoint %s — request failed: %s", url, exc)
+                continue
+
+            if resp.status_code != 200:
+                log.debug("EPG endpoint %s — HTTP %d", url, resp.status_code)
+                continue
+
+            content = resp.content
+            content_type = resp.headers.get("Content-Type", "")
+            log.debug("EPG endpoint %s — %d bytes, Content-Type: %s", url, len(content), content_type)
+
+            if not content:
+                log.debug("EPG endpoint %s — empty body, skipping", url)
+                continue
+
+            # Sniff the response: log the first 300 chars to aid debugging
+            snippet = content[:300].decode("utf-8", errors="replace")
+            log.debug("EPG response snippet: %s", snippet)
+
+            # Try XMLTV parse
+            try:
+                root = ET.fromstring(content)
+                log.info("EPG loaded from %s", url)
+                return root
+            except ET.ParseError as exc:
+                # Not XML — check if it looks like JSON (Dispatcharr may return JSON)
+                if content.lstrip()[:1] in (b"{", b"["):
+                    log.debug("EPG endpoint %s returned JSON, attempting JSON→XMLTV conversion", url)
+                    try:
+                        return self._json_to_xmltv(json.loads(content))
+                    except Exception as json_exc:
+                        log.debug("JSON EPG parse failed: %s", json_exc)
+                        last_exc = json_exc
+                else:
+                    log.debug(
+                        "EPG endpoint %s returned non-XML content (parse error: %s). "
+                        "First 300 chars: %s",
+                        url, exc, snippet,
+                    )
+                    last_exc = exc
 
         raise RuntimeError(
-            f"Could not fetch XMLTV from Dispatcharr. Last error: {last_error}"
+            f"Could not fetch a valid XMLTV feed from Dispatcharr at {self.base}.\n"
+            f"Last error: {last_exc}\n\n"
+            "Troubleshooting tips:\n"
+            "  • Confirm your Dispatcharr URL and API token in Settings\n"
+            "  • Check the URL ends with no trailing slash (e.g. http://192.168.1.x:8080)\n"
+            "  • In Dispatcharr, verify that at least one EPG source is configured and active\n"
+            "  • Run with --verbose to see each endpoint attempt in the logs"
         )
 
     @staticmethod
+    def _json_to_xmltv(data: object) -> ET.Element:
+        """
+        Best-effort conversion of a JSON EPG payload to an in-memory XMLTV element tree.
+        Handles a list-of-programme objects as some providers return.
+        """
+        root = ET.Element("tv")
+
+        items: list = data if isinstance(data, list) else data.get("programmes", data.get("events", []))  # type: ignore[union-attr]
+
+        seen_channels: set[str] = set()
+        for item in items:
+            ch_id = str(item.get("channel_id") or item.get("channel") or "unknown")
+            ch_name = str(item.get("channel_name") or item.get("channelName") or ch_id)
+
+            if ch_id not in seen_channels:
+                ch_el = ET.SubElement(root, "channel", id=ch_id)
+                ET.SubElement(ch_el, "display-name").text = ch_name
+                seen_channels.add(ch_id)
+
+            # Parse start / stop — accept ISO strings or XMLTV format
+            start_raw = str(item.get("start") or item.get("startTime") or "")
+            stop_raw  = str(item.get("stop")  or item.get("end") or item.get("endTime") or "")
+
+            def to_xmltv_dt(s: str) -> str:
+                s = s.strip()
+                if not s:
+                    return ""
+                # Already XMLTV format
+                if len(s) >= 14 and s[:14].isdigit():
+                    return s if " " in s else s + " +0000"
+                # ISO 8601
+                for fmt in ("%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S"):
+                    try:
+                        dt = datetime.strptime(s[:19], fmt).replace(tzinfo=timezone.utc)
+                        return dt.strftime("%Y%m%d%H%M%S") + " +0000"
+                    except ValueError:
+                        continue
+                return s
+
+            start_str = to_xmltv_dt(start_raw)
+            stop_str  = to_xmltv_dt(stop_raw)
+            if not start_str:
+                continue
+
+            prog_el = ET.SubElement(root, "programme",
+                                    start=start_str, stop=stop_str, channel=ch_id)
+            title = str(item.get("title") or item.get("name") or "")
+            ET.SubElement(prog_el, "title").text = title
+
+            desc = str(item.get("description") or item.get("desc") or "")
+            if desc:
+                ET.SubElement(prog_el, "desc").text = desc
+
+            for cat in (item.get("categories") or item.get("genres") or []):
+                ET.SubElement(prog_el, "category").text = str(cat)
+
+        return root
+
+    @staticmethod
     def _parse_channels(root: ET.Element) -> dict[str, str]:
-        """Return mapping of channel id → display name."""
         channels: dict[str, str] = {}
         for ch in root.findall("channel"):
             cid = ch.get("id", "")
@@ -90,7 +212,6 @@ class DispatcharrClient:
     def _parse_dt(value: str) -> datetime:
         """Parse an XMLTV datetime string (e.g. '20240101120000 +0000') to UTC datetime."""
         value = value.strip()
-        # Format: YYYYMMDDHHmmss [+HHMM]
         if " " in value:
             dt_part, tz_part = value.split(" ", 1)
             tz_part = tz_part.replace(":", "")
@@ -98,8 +219,7 @@ class DispatcharrClient:
             tz_part = tz_part.lstrip("+-")
             tz_h, tz_m = int(tz_part[:2]), int(tz_part[2:4])
             offset_minutes = sign * (tz_h * 60 + tz_m)
-            from datetime import timedelta, timezone as tz
-            tzinfo = tz(timedelta(minutes=offset_minutes))
+            tzinfo = timezone(timedelta(minutes=offset_minutes))
         else:
             dt_part = value
             tzinfo = timezone.utc
@@ -118,7 +238,7 @@ class DispatcharrClient:
         for prog in root.findall("programme"):
             try:
                 prog_start = self._parse_dt(prog.get("start", ""))
-                prog_stop = self._parse_dt(prog.get("stop", ""))
+                prog_stop  = self._parse_dt(prog.get("stop", ""))
             except (ValueError, AttributeError) as exc:
                 log.debug("Skipping programme with unparseable time: %s", exc)
                 continue
@@ -127,19 +247,17 @@ class DispatcharrClient:
                 continue
 
             channel_id = prog.get("channel", "")
-            title_el = prog.find("title")
-            desc_el = prog.find("desc")
+            title_el   = prog.find("title")
+            desc_el    = prog.find("desc")
             categories = [c.text for c in prog.findall("category") if c.text]
 
-            programmes.append(
-                Programme(
-                    channel_id=channel_id,
-                    channel_name=channels.get(channel_id, channel_id),
-                    title=title_el.text if title_el is not None else "",
-                    start=prog_start,
-                    stop=prog_stop,
-                    description=desc_el.text if desc_el is not None else "",
-                    categories=categories,
-                )
-            )
+            programmes.append(Programme(
+                channel_id=channel_id,
+                channel_name=channels.get(channel_id, channel_id),
+                title=title_el.text if title_el is not None else "",
+                start=prog_start,
+                stop=prog_stop,
+                description=desc_el.text if desc_el is not None else "",
+                categories=categories,
+            ))
         return programmes

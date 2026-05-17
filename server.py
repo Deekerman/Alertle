@@ -223,6 +223,46 @@ async def delete_subscription(request: Request, idx: int):
     return resp
 
 
+# ── API probe ─────────────────────────────────────────────────────────────
+
+@app.get("/action/probe", response_class=HTMLResponse)
+async def probe_dispatcharr(request: Request):
+    cfg = load_config()
+    d = cfg.get("dispatcharr", {})
+    if not d.get("url"):
+        return HTMLResponse('<p class="text-yellow-400 text-sm">No URL configured yet.</p>')
+    try:
+        client = DispatcharrClient(d["url"], d.get("token", ""))
+        results = client.probe_api()
+    except Exception as exc:
+        return HTMLResponse(f'<p class="text-red-400 text-sm">Probe failed: {exc}</p>')
+
+    rows = ""
+    for path, info in results.items():
+        status = info.get("status")
+        if status == 200:
+            colour = "text-green-400"
+            detail = info.get("snippet", "")[:120]
+        elif status is None:
+            colour = "text-red-400"
+            detail = info.get("error", "")
+        else:
+            colour = "text-yellow-400"
+            detail = info.get("snippet", "")[:120]
+
+        rows += (
+            f'<tr class="border-b border-border">'
+            f'<td class="py-1.5 pr-4 font-mono text-xs text-gray-300">{path}</td>'
+            f'<td class="py-1.5 pr-4 text-xs {colour}">{status or "err"}</td>'
+            f'<td class="py-1.5 text-xs text-gray-500 truncate max-w-xs">{detail}</td>'
+            f'</tr>'
+        )
+
+    return HTMLResponse(
+        f'<table class="w-full mt-3"><tbody>{rows}</tbody></table>'
+    )
+
+
 # ── Settings ───────────────────────────────────────────────────────────────
 
 @app.post("/action/settings")

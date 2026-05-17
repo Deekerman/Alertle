@@ -46,6 +46,26 @@
                  value="{{ cfg.get('poll_interval_seconds', 3600) }}" />
         </div>
       </div>
+
+      <!-- Connection probe -->
+      <div class="border-t border-border pt-4">
+        <div class="flex items-center gap-3">
+          <button type="button"
+            hx-get="/action/probe"
+            hx-target="#probe-result"
+            hx-swap="innerHTML"
+            hx-indicator="#probe-spinner"
+            class="btn-ghost text-xs flex items-center gap-2">
+            <svg id="probe-spinner" class="htmx-indicator animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+            </svg>
+            Test connection &amp; probe endpoints
+          </button>
+          <p class="text-xs text-gray-600">Checks which EPG endpoints respond on your Dispatcharr instance</p>
+        </div>
+        <div id="probe-result" class="mt-2 overflow-x-auto"></div>
+      </div>
     </div>
 
     <!-- ── Notification channels ────────────────────────────────────────── -->

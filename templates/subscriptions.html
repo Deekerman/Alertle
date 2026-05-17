@@ -57,8 +57,14 @@
           <input name="lead_time_minutes" type="number" min="0" class="field"
                  placeholder="Default: {{ default_lead }}" />
         </div>
+        <div class="col-span-2">
+          <label class="block text-xs text-gray-400 mb-1.5">Exclude keywords
+            <span class="text-gray-600 font-normal ml-1">— comma-separated; any match blocks the notification</span>
+          </label>
+          <input name="exclude" class="field" placeholder="e.g. Women's, U20, highlights" />
+        </div>
         <div class="col-span-2 flex items-center justify-between mt-1">
-          <p class="text-xs text-gray-600">All non-empty fields must match (AND logic). At least one of sport / team / keyword required.</p>
+          <p class="text-xs text-gray-600">All non-empty match fields are AND-ed. At least one of sport / team / keyword required.</p>
           <button type="submit" class="btn-primary ml-4 shrink-0">Add</button>
         </div>
       </form>

@@ -86,6 +86,11 @@
         <label class="block text-xs text-gray-400 mb-1.5">Lead time (minutes)</label>
         <input name="lead_time_minutes" :value="$store.subPanel.lead" class="field" type="number" min="0" placeholder="Default from settings" />
       </div>
+      <div>
+        <label class="block text-xs text-gray-400 mb-1.5">Exclude keywords</label>
+        <input name="exclude" class="field" placeholder="e.g. Women's, U20" />
+        <p class="text-[10px] text-gray-600 mt-1">Comma-separated — any match blocks the notification</p>
+      </div>
 
       <p class="text-[10px] text-gray-600">Fill at least one of sport / team / keyword.</p>
 

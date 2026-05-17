@@ -22,8 +22,8 @@ ROOT = Path(__file__).parent
 sys.path.insert(0, str(ROOT))
 
 from epg_scanner import DispatcharrClient, Programme
-from matcher import build_subscriptions, find_matches
-from notifiers.base import format_message
+from matcher import build_subscriptions, find_matches, group_matches, group_programmes
+from notifiers.base import format_grouped_message
 from storage import NotificationStore
 
 CONFIG_PATH = ROOT / "config.yaml"
@@ -120,11 +120,12 @@ async def partial_matches(request: Request):
             cfg.get("subscriptions", []),
             cfg.get("default_lead_time_minutes", 30),
         )
-        matches = sorted(find_matches(programmes, subs), key=lambda m: m.programme.start)
+        grouped = group_matches(find_matches(programmes, subs))
     except Exception as exc:
         error = str(exc)
+        grouped = []
     return templates.TemplateResponse(request, "partials/matches.html", {
-        "matches": matches, "error": error,
+        "grouped": grouped, "error": error,
     })
 
 
@@ -154,12 +155,12 @@ async def partial_epg(
             ql = q.lower()
             filtered = [p for p in filtered if ql in p.title.lower() or ql in p.description.lower()]
 
-        filtered = sorted(filtered, key=lambda p: p.start)[:300]
+        filtered = sorted(filtered, key=lambda p: p.start)[:600]
     except Exception as exc:
         error = str(exc)
 
     return templates.TemplateResponse(request, "partials/epg_rows.html", {
-        "programmes": filtered,
+        "groups": group_programmes(filtered),
         "channels": channels,
         "sports": sports,
         "error": error,
@@ -185,6 +186,7 @@ async def add_subscription(
     team: str = Form(""),
     keyword: str = Form(""),
     channel: str = Form(""),
+    exclude: str = Form(""),
     lead_time_minutes: str = Form(""),
 ):
     cfg = load_config()
@@ -198,6 +200,9 @@ async def add_subscription(
         entry["keyword"] = keyword.strip()
     if channel.strip():
         entry["channel"] = channel.strip()
+    exclude_list = [x.strip() for x in exclude.split(",") if x.strip()]
+    if exclude_list:
+        entry["exclude"] = exclude_list
     if lead_time_minutes.strip():
         try:
             entry["lead_time_minutes"] = int(lead_time_minutes)

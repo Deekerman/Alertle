@@ -11,8 +11,8 @@ from pathlib import Path
 import yaml
 
 from epg_scanner import DispatcharrClient
-from matcher import Match, build_subscriptions, find_matches
-from notifiers.base import BaseNotifier, format_message
+from matcher import Match, build_subscriptions, find_matches, group_matches
+from notifiers.base import BaseNotifier, format_grouped_message
 from storage import NotificationStore
 
 log = logging.getLogger(__name__)
@@ -70,7 +70,11 @@ def build_notifiers(cfg: dict) -> list[BaseNotifier]:
 
 def run_scan(cfg: dict, notifiers: list[BaseNotifier], store: NotificationStore, dry_run: bool):
     dispatcharr = cfg["dispatcharr"]
-    client = DispatcharrClient(dispatcharr["url"], dispatcharr["token"])
+    client = DispatcharrClient(
+        dispatcharr["url"],
+        dispatcharr.get("token", ""),
+        dispatcharr.get("xmltv_url", ""),
+    )
 
     now = datetime.now(timezone.utc)
     lookahead = timedelta(days=dispatcharr.get("lookahead_days", 7))
@@ -87,27 +91,22 @@ def run_scan(cfg: dict, notifiers: list[BaseNotifier], store: NotificationStore,
     programmes = client.fetch_programmes(now, window_end)
 
     matches = find_matches(programmes, subscriptions)
-    log.info("Found %d matching events", len(matches))
+    # Group same event on multiple channels into one notification
+    grouped = group_matches(matches)
+    log.info("Found %d unique events (%d channel slots matched)", len(grouped), len(matches))
 
     sent_count = 0
-    for m in matches:
-        notify_at = m.programme.start - timedelta(minutes=m.subscription.lead_time_minutes)
+    for g in grouped:
+        notify_at = g.start - timedelta(minutes=g.subscription.lead_time_minutes)
         if now < notify_at:
-            log.debug(
-                "Skipping '%s' — notification scheduled for %s",
-                m.programme.title,
-                notify_at.strftime("%Y-%m-%d %H:%M UTC"),
-            )
+            log.debug("Skipping '%s' — notify at %s UTC", g.title, notify_at.strftime("%Y-%m-%d %H:%M"))
             continue
 
-        uid = m.programme.uid
-        label = m.subscription.label
-
-        if store.already_sent(uid, label):
-            log.debug("Already notified: %s / %s", label, m.programme.title)
+        if store.already_sent(g.group_uid, g.subscription.label):
+            log.debug("Already notified: %s / %s", g.subscription.label, g.title)
             continue
 
-        title, body = format_message(m.programme, m.subscription)
+        title, body = format_grouped_message(g)
 
         if dry_run:
             print(f"\n{'─'*60}")
@@ -115,11 +114,10 @@ def run_scan(cfg: dict, notifiers: list[BaseNotifier], store: NotificationStore,
             print(body)
         else:
             _dispatch(notifiers, title, body)
-            store.mark_sent(uid, label, now.isoformat())
+            store.mark_sent(g.group_uid, g.subscription.label, now.isoformat())
             sent_count += 1
 
     if not dry_run:
-        # Prune entries older than lookahead window
         store.prune_old((now - lookahead).isoformat())
         log.info("Notifications sent: %d", sent_count)
 

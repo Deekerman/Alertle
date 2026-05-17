@@ -19,6 +19,7 @@ class Programme:
     title: str
     start: datetime
     stop: datetime
+    channel_number: str = ""
     description: str = ""
     categories: list[str] = field(default_factory=list)
     uid: str = ""
@@ -31,7 +32,7 @@ class Programme:
 class DispatcharrClient:
     def __init__(self, url: str, token: str, xmltv_url: str = ""):
         self.base = url.rstrip("/")
-        self.xmltv_url = xmltv_url.strip()  # direct URL overrides all path guessing
+        self.xmltv_url = xmltv_url.strip()
         self.session = requests.Session()
         self.session.headers.update({"Authorization": f"Bearer {token}"})
 
@@ -109,9 +110,6 @@ class DispatcharrClient:
 
     @staticmethod
     def _candidate_paths() -> list[str]:
-        # Dispatcharr-specific output endpoints first, then generic XMLTV paths.
-        # Dispatcharr (Django-based) typically exposes output at /output/xmltv/
-        # and may use a UUID-keyed URL like /output/xmltv/<uuid>/
         return [
             "/output/xmltv/",
             "/output/xmltv",
@@ -125,18 +123,15 @@ class DispatcharrClient:
         ]
 
     def _fetch_xmltv(self) -> ET.Element:
-        """Try each candidate endpoint (with both Bearer and Token auth) and
-        return the first response that parses as valid XMLTV."""
+        """Try each candidate endpoint (with multiple auth styles) and return the first valid XMLTV."""
         last_exc: Optional[Exception] = None
         attempted: list[str] = []
 
-        # Dispatcharr uses Django REST Framework which accepts "Token <key>"
-        # as well as "Bearer <key>". Try both auth styles per URL.
         token_value = self.session.headers.get("Authorization", "").split(" ", 1)[-1]
         auth_headers_to_try = [
             {"Authorization": f"Bearer {token_value}"},
             {"Authorization": f"Token {token_value}"},
-            {},  # some output endpoints are unauthenticated
+            {},
         ]
 
         for path in self._candidate_paths():
@@ -147,18 +142,17 @@ class DispatcharrClient:
                 except requests.RequestException as exc:
                     last_exc = exc
                     log.debug("EPG %s — request failed: %s", url, exc)
-                    break  # network error — no point retrying different auth
+                    break
 
                 if resp.status_code in (401, 403):
-                    log.debug("EPG %s — auth rejected (%d), trying next auth style", url, resp.status_code)
+                    log.debug("EPG %s — auth rejected (%d)", url, resp.status_code)
                     continue
 
                 if resp.status_code != 200:
                     log.debug("EPG %s — HTTP %d", url, resp.status_code)
-                    break  # non-auth error — skip remaining auth variants
+                    break
 
                 content = resp.content
-                content_type = resp.headers.get("Content-Type", "")
                 snippet = content[:400].decode("utf-8", errors="replace").strip()
                 attempted.append(f"{url}  [{resp.status_code}]  {snippet[:120]!r}")
 
@@ -166,9 +160,7 @@ class DispatcharrClient:
                     log.warning("EPG %s — 200 OK but empty body", url)
                     break
 
-                # JSON response
                 if content.lstrip()[:1] in (b"{", b"["):
-                    log.debug("EPG %s — JSON response, converting", url)
                     try:
                         return self._json_to_xmltv(json.loads(content))
                     except Exception as exc:
@@ -176,21 +168,17 @@ class DispatcharrClient:
                         last_exc = exc
                         break
 
-                # XMLTV / XML response
                 try:
                     root = ET.fromstring(content)
-                    log.info("EPG loaded from %s (auth: %s)", url,
-                             list(auth.keys())[0].replace("Authorization", "") if auth else "none")
+                    log.info("EPG loaded from %s", url)
                     return root
                 except ET.ParseError as exc:
                     log.warning(
-                        "EPG %s — 200 OK but not valid XML.\n"
-                        "  Parse error : %s\n"
-                        "  Response    : %s",
+                        "EPG %s — 200 OK but not valid XML.\n  Error: %s\n  Response: %s",
                         url, exc, snippet[:300],
                     )
                     last_exc = exc
-                    break  # bad content — different auth won't help
+                    break
 
         summary = "\n".join(f"  {a}" for a in attempted) or "  (none reached 200 OK)"
         raise RuntimeError(
@@ -199,33 +187,108 @@ class DispatcharrClient:
             f"Endpoints that returned 200 OK:\n{summary}\n\n"
             "Troubleshooting tips:\n"
             "  • Use 'Test connection & probe endpoints' on the Settings page\n"
-            "  • Confirm your Dispatcharr URL and API token are correct\n"
             "  • In Dispatcharr, check Settings → Output and copy the XMLTV URL exactly\n"
-            "  • If Dispatcharr shows a UUID in the XMLTV URL, set that full path as the URL\n"
-            "  • Verify at least one EPG source is mapped in Dispatcharr"
+            "  • Paste that full URL into the 'Direct XMLTV URL' field in Settings"
         )
 
     @staticmethod
-    def _json_to_xmltv(data: object) -> ET.Element:
-        """
-        Best-effort conversion of a JSON EPG payload to an in-memory XMLTV element tree.
-        Handles a list-of-programme objects as some providers return.
-        """
-        root = ET.Element("tv")
+    def _parse_channels(root: ET.Element) -> dict[str, tuple[str, str]]:
+        """Return mapping of channel id → (display_name, channel_number)."""
+        channels: dict[str, tuple[str, str]] = {}
+        for ch in root.findall("channel"):
+            cid = ch.get("id", "")
+            display_names = [el.text.strip() for el in ch.findall("display-name") if el.text]
 
+            number = ""
+            text_names: list[str] = []
+            for dn in display_names:
+                # A display-name that is purely numeric (or decimal like "7.1") is a channel number
+                if dn.replace(".", "").isdigit():
+                    number = number or dn
+                else:
+                    text_names.append(dn)
+
+            # Some providers use an <lcn> element
+            lcn_el = ch.find("lcn")
+            if lcn_el is not None and lcn_el.text:
+                number = lcn_el.text.strip()
+
+            name = text_names[0] if text_names else (display_names[0] if display_names else cid)
+            channels[cid] = (name, number)
+        return channels
+
+    @staticmethod
+    def _parse_dt(value: str) -> datetime:
+        value = value.strip()
+        if " " in value:
+            dt_part, tz_part = value.split(" ", 1)
+            tz_part = tz_part.replace(":", "")
+            sign = 1 if tz_part[0] != "-" else -1
+            tz_part = tz_part.lstrip("+-")
+            tz_h, tz_m = int(tz_part[:2]), int(tz_part[2:4])
+            offset_minutes = sign * (tz_h * 60 + tz_m)
+            tzinfo = timezone(timedelta(minutes=offset_minutes))
+        else:
+            dt_part = value
+            tzinfo = timezone.utc
+        return datetime.strptime(dt_part, "%Y%m%d%H%M%S").replace(tzinfo=tzinfo).astimezone(timezone.utc)
+
+    def _parse_programmes(
+        self,
+        root: ET.Element,
+        channels: dict[str, tuple[str, str]],
+        start: datetime,
+        stop: datetime,
+    ) -> list[Programme]:
+        programmes: list[Programme] = []
+        for prog in root.findall("programme"):
+            try:
+                prog_start = self._parse_dt(prog.get("start", ""))
+                prog_stop  = self._parse_dt(prog.get("stop",  ""))
+            except (ValueError, AttributeError) as exc:
+                log.debug("Skipping programme with unparseable time: %s", exc)
+                continue
+
+            if prog_stop < start or prog_start > stop:
+                continue
+
+            channel_id = prog.get("channel", "")
+            ch_name, ch_number = channels.get(channel_id, (channel_id, ""))
+            title_el = prog.find("title")
+            desc_el  = prog.find("desc")
+            categories = [c.text for c in prog.findall("category") if c.text]
+
+            programmes.append(Programme(
+                channel_id=channel_id,
+                channel_name=ch_name,
+                channel_number=ch_number,
+                title=title_el.text if title_el is not None else "",
+                start=prog_start,
+                stop=prog_stop,
+                description=desc_el.text if desc_el is not None else "",
+                categories=categories,
+            ))
+        return programmes
+
+    @staticmethod
+    def _json_to_xmltv(data: object) -> ET.Element:
+        """Best-effort conversion of a JSON EPG payload to an in-memory XMLTV element tree."""
+        root = ET.Element("tv")
         items: list = data if isinstance(data, list) else data.get("programmes", data.get("events", []))  # type: ignore[union-attr]
 
         seen_channels: set[str] = set()
         for item in items:
-            ch_id = str(item.get("channel_id") or item.get("channel") or "unknown")
+            ch_id   = str(item.get("channel_id") or item.get("channel") or "unknown")
             ch_name = str(item.get("channel_name") or item.get("channelName") or ch_id)
+            ch_num  = str(item.get("channel_number") or item.get("channelNumber") or "")
 
             if ch_id not in seen_channels:
                 ch_el = ET.SubElement(root, "channel", id=ch_id)
+                if ch_num:
+                    ET.SubElement(ch_el, "display-name").text = ch_num
                 ET.SubElement(ch_el, "display-name").text = ch_name
                 seen_channels.add(ch_id)
 
-            # Parse start / stop — accept ISO strings or XMLTV format
             start_raw = str(item.get("start") or item.get("startTime") or "")
             stop_raw  = str(item.get("stop")  or item.get("end") or item.get("endTime") or "")
 
@@ -233,10 +296,8 @@ class DispatcharrClient:
                 s = s.strip()
                 if not s:
                     return ""
-                # Already XMLTV format
                 if len(s) >= 14 and s[:14].isdigit():
                     return s if " " in s else s + " +0000"
-                # ISO 8601
                 for fmt in ("%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S"):
                     try:
                         dt = datetime.strptime(s[:19], fmt).replace(tzinfo=timezone.utc)
@@ -250,79 +311,12 @@ class DispatcharrClient:
             if not start_str:
                 continue
 
-            prog_el = ET.SubElement(root, "programme",
-                                    start=start_str, stop=stop_str, channel=ch_id)
-            title = str(item.get("title") or item.get("name") or "")
-            ET.SubElement(prog_el, "title").text = title
-
+            prog_el = ET.SubElement(root, "programme", start=start_str, stop=stop_str, channel=ch_id)
+            ET.SubElement(prog_el, "title").text = str(item.get("title") or item.get("name") or "")
             desc = str(item.get("description") or item.get("desc") or "")
             if desc:
                 ET.SubElement(prog_el, "desc").text = desc
-
             for cat in (item.get("categories") or item.get("genres") or []):
                 ET.SubElement(prog_el, "category").text = str(cat)
 
         return root
-
-    @staticmethod
-    def _parse_channels(root: ET.Element) -> dict[str, str]:
-        channels: dict[str, str] = {}
-        for ch in root.findall("channel"):
-            cid = ch.get("id", "")
-            name_el = ch.find("display-name")
-            channels[cid] = name_el.text if name_el is not None else cid
-        return channels
-
-    @staticmethod
-    def _parse_dt(value: str) -> datetime:
-        """Parse an XMLTV datetime string (e.g. '20240101120000 +0000') to UTC datetime."""
-        value = value.strip()
-        if " " in value:
-            dt_part, tz_part = value.split(" ", 1)
-            tz_part = tz_part.replace(":", "")
-            sign = 1 if tz_part[0] != "-" else -1
-            tz_part = tz_part.lstrip("+-")
-            tz_h, tz_m = int(tz_part[:2]), int(tz_part[2:4])
-            offset_minutes = sign * (tz_h * 60 + tz_m)
-            tzinfo = timezone(timedelta(minutes=offset_minutes))
-        else:
-            dt_part = value
-            tzinfo = timezone.utc
-
-        dt = datetime.strptime(dt_part, "%Y%m%d%H%M%S").replace(tzinfo=tzinfo)
-        return dt.astimezone(timezone.utc)
-
-    def _parse_programmes(
-        self,
-        root: ET.Element,
-        channels: dict[str, str],
-        start: datetime,
-        stop: datetime,
-    ) -> list[Programme]:
-        programmes: list[Programme] = []
-        for prog in root.findall("programme"):
-            try:
-                prog_start = self._parse_dt(prog.get("start", ""))
-                prog_stop  = self._parse_dt(prog.get("stop", ""))
-            except (ValueError, AttributeError) as exc:
-                log.debug("Skipping programme with unparseable time: %s", exc)
-                continue
-
-            if prog_stop < start or prog_start > stop:
-                continue
-
-            channel_id = prog.get("channel", "")
-            title_el   = prog.find("title")
-            desc_el    = prog.find("desc")
-            categories = [c.text for c in prog.findall("category") if c.text]
-
-            programmes.append(Programme(
-                channel_id=channel_id,
-                channel_name=channels.get(channel_id, channel_id),
-                title=title_el.text if title_el is not None else "",
-                start=prog_start,
-                stop=prog_stop,
-                description=desc_el.text if desc_el is not None else "",
-                categories=categories,
-            ))
-        return programmes

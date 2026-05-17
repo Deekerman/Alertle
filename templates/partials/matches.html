@@ -1,11 +1,11 @@
 {% if error %}
 <div class="card border-red-800/50 bg-red-900/10">
   <p class="text-sm text-red-400 font-medium">Failed to fetch EPG</p>
-  <p class="text-xs text-red-500 mt-1 font-mono">{{ error }}</p>
-  <p class="text-xs text-gray-500 mt-2">Check your Dispatcharr URL and token in <a href="/settings" class="underline text-indigo-400">Settings</a>.</p>
+  <p class="text-xs text-red-500 mt-1 font-mono whitespace-pre-wrap">{{ error }}</p>
+  <p class="text-xs text-gray-500 mt-2">Check your settings in <a href="/settings" class="underline text-indigo-400">Settings</a>.</p>
 </div>
 
-{% elif not matches %}
+{% elif not grouped %}
 <div class="card text-center py-14">
   <p class="text-4xl mb-4">🏆</p>
   <p class="text-gray-300 font-medium">No upcoming events matched your subscriptions</p>
@@ -20,18 +20,20 @@
 <div class="grid grid-cols-3 gap-4 mb-6">
   <div class="card">
     <p class="section-title">Matched events</p>
-    <p class="text-3xl font-bold text-white">{{ matches|length }}</p>
+    <p class="text-3xl font-bold text-white">{{ grouped|length }}</p>
   </div>
   <div class="card">
     <p class="section-title">Next event</p>
     <p class="text-sm font-semibold text-indigo-300">
-      {{ matches[0].programme.start.astimezone().strftime('%a %b %-d · %-I:%M %p') }}
+      {{ grouped[0].start.astimezone().strftime('%a %b %-d · %-I:%M %p') }}
     </p>
-    <p class="text-xs text-gray-500 mt-0.5 truncate">{{ matches[0].programme.title }}</p>
+    <p class="text-xs text-gray-500 mt-0.5 truncate">{{ grouped[0].title }}</p>
   </div>
   <div class="card">
-    <p class="section-title">Channels</p>
-    <p class="text-3xl font-bold text-white">{{ matches|map(attribute='programme.channel_name')|unique|list|length }}</p>
+    <p class="section-title">Subscriptions matched</p>
+    <p class="text-3xl font-bold text-white">
+      {{ grouped|map(attribute='subscription.label')|unique|list|length }}
+    </p>
   </div>
 </div>
 
@@ -42,38 +44,45 @@
       <tr class="border-b border-border text-left">
         <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-40">Time</th>
         <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Event</th>
-        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-36">Channel</th>
+        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Channels</th>
         <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-36">Rule</th>
-        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-20 text-right">Duration</th>
+        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-16 text-right">Dur.</th>
       </tr>
     </thead>
     <tbody class="divide-y divide-border">
-      {% for m in matches %}
-      {% set p = m.programme %}
-      {% set dur = ((p.stop - p.start).total_seconds() / 60)|int %}
+      {% for g in grouped %}
+      {% set dur = ((g.stop - g.start).total_seconds() / 60)|int %}
       <tr class="hover:bg-white/[0.02] transition-colors">
         <td class="px-4 py-3 text-gray-300 font-mono text-xs">
-          <div>{{ p.start.astimezone().strftime('%a %b %-d') }}</div>
-          <div class="text-indigo-400 font-semibold text-sm">{{ p.start.astimezone().strftime('%-I:%M %p') }}</div>
+          <div class="text-gray-500">{{ g.start.astimezone().strftime('%a %b %-d') }}</div>
+          <div class="text-indigo-400 font-semibold text-sm">{{ g.start.astimezone().strftime('%-I:%M %p') }}</div>
         </td>
         <td class="px-4 py-3">
-          <div class="font-medium text-white">{{ p.title }}</div>
-          {% if p.categories %}
+          <div class="font-medium text-white">{{ g.title }}</div>
+          {% if g.categories %}
           <div class="mt-1 flex flex-wrap gap-1">
-            {% for cat in p.categories[:3] %}
+            {% for cat in g.categories[:3] %}
             <span class="tag bg-gray-700/60 text-gray-400">{{ cat }}</span>
             {% endfor %}
           </div>
           {% endif %}
-          {% if p.description %}
-          <div class="text-xs text-gray-500 mt-1 line-clamp-1">{{ p.description }}</div>
+          {% if g.description %}
+          <div class="text-xs text-gray-500 mt-1 line-clamp-1">{{ g.description }}</div>
           {% endif %}
         </td>
-        <td class="px-4 py-3 text-gray-400 text-xs">{{ p.channel_name }}</td>
         <td class="px-4 py-3">
-          <span class="tag bg-indigo-900/50 text-indigo-300">{{ m.subscription.label }}</span>
+          <div class="flex flex-wrap gap-1">
+            {% for num, name in g.channels %}
+            <span class="tag bg-gray-800 text-gray-300 border border-border">
+              {% if num %}<span class="text-gray-500 mr-0.5">{{ num }}</span>{% endif %}{{ name }}
+            </span>
+            {% endfor %}
+          </div>
         </td>
-        <td class="px-4 py-3 text-gray-500 text-xs text-right">{{ dur }} min</td>
+        <td class="px-4 py-3">
+          <span class="tag bg-indigo-900/50 text-indigo-300">{{ g.subscription.label }}</span>
+        </td>
+        <td class="px-4 py-3 text-gray-500 text-xs text-right">{{ dur }}m</td>
       </tr>
       {% endfor %}
     </tbody>

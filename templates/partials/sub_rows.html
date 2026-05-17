@@ -11,32 +11,51 @@
     <thead>
       <tr class="border-b border-border text-left">
         <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Label</th>
-        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Sport</th>
-        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Team</th>
-        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Keyword</th>
-        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Channel</th>
-        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Lead</th>
-        <th class="px-4 py-3 w-12"></th>
+        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Match</th>
+        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Exclude</th>
+        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24 text-right">Lead</th>
+        <th class="px-4 py-3 w-16"></th>
       </tr>
     </thead>
     <tbody class="divide-y divide-border">
       {% for sub in subscriptions %}
       <tr class="hover:bg-white/[0.02] group">
-        <td class="px-4 py-3 font-medium text-white">{{ sub.label }}</td>
-        <td class="px-4 py-3 text-gray-400 text-xs">
-          {% if sub.sport %}<span class="tag bg-blue-900/40 text-blue-300">{{ sub.sport }}</span>{% else %}<span class="text-gray-600">—</span>{% endif %}
+        <td class="px-4 py-3 font-medium text-white align-top">{{ sub.label }}</td>
+        <td class="px-4 py-3 align-top">
+          <div class="flex flex-wrap gap-1">
+            {% if sub.sport %}
+            <span class="tag bg-blue-900/40 text-blue-300" title="sport">{{ sub.sport }}</span>
+            {% endif %}
+            {% if sub.team %}
+            <span class="tag bg-green-900/40 text-green-300" title="team">{{ sub.team }}</span>
+            {% endif %}
+            {% if sub.keyword %}
+            <span class="tag bg-yellow-900/40 text-yellow-300" title="keyword">{{ sub.keyword }}</span>
+            {% endif %}
+            {% if sub.channel %}
+            <span class="tag bg-gray-700/60 text-gray-400" title="channel">{{ sub.channel }}</span>
+            {% endif %}
+            {% if not sub.sport and not sub.team and not sub.keyword and not sub.channel %}
+            <span class="text-gray-600 text-xs">—</span>
+            {% endif %}
+          </div>
         </td>
-        <td class="px-4 py-3 text-gray-400 text-xs">
-          {% if sub.team %}<span class="tag bg-green-900/40 text-green-300">{{ sub.team }}</span>{% else %}<span class="text-gray-600">—</span>{% endif %}
+        <td class="px-4 py-3 align-top">
+          {% set excl = sub.get('exclude', []) if sub is mapping else [] %}
+          {% if excl %}
+          <div class="flex flex-wrap gap-1">
+            {% for term in excl %}
+            <span class="tag bg-red-900/30 text-red-400">✕ {{ term }}</span>
+            {% endfor %}
+          </div>
+          {% else %}
+          <span class="text-gray-600 text-xs">—</span>
+          {% endif %}
         </td>
-        <td class="px-4 py-3 text-gray-400 text-xs">
-          {% if sub.keyword %}<span class="tag bg-yellow-900/40 text-yellow-300">{{ sub.keyword }}</span>{% else %}<span class="text-gray-600">—</span>{% endif %}
+        <td class="px-4 py-3 text-gray-500 text-xs text-right align-top">
+          {% if sub.lead_time_minutes is defined %}{{ sub.lead_time_minutes }}m{% else %}default{% endif %}
         </td>
-        <td class="px-4 py-3 text-gray-500 text-xs">{{ sub.channel or '—' }}</td>
-        <td class="px-4 py-3 text-gray-500 text-xs text-right">
-          {% if sub.lead_time_minutes is defined %}{{ sub.lead_time_minutes }} min{% else %}default{% endif %}
-        </td>
-        <td class="px-4 py-3 text-right">
+        <td class="px-4 py-3 text-right align-top">
           <button
             hx-delete="/partial/subscriptions/{{ loop.index0 }}"
             hx-target="#sub-list"

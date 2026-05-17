@@ -1,8 +1,7 @@
 {% if error %}
 <div class="card border-red-800/50 bg-red-900/10">
   <p class="text-sm text-red-400 font-medium">Failed to fetch EPG</p>
-  <p class="text-xs text-red-500 mt-1 font-mono">{{ error }}</p>
-  <p class="text-xs text-gray-500 mt-2">Check your Dispatcharr connection in <a href="/settings" class="underline text-indigo-400">Settings</a>.</p>
+  <p class="text-xs text-red-500 mt-1 font-mono whitespace-pre-wrap">{{ error }}</p>
 </div>
 {% else %}
 
@@ -22,7 +21,7 @@
     placeholder="Search title or description…"
   />
   <select name="sport" class="field w-52">
-    <option value="">All sports</option>
+    <option value="">All sports / categories</option>
     {% for s in sports %}
     <option value="{{ s }}" {% if s == sport %}selected{% endif %}>{{ s }}</option>
     {% endfor %}
@@ -35,57 +34,62 @@
   </select>
 </form>
 
-<!-- Count -->
 <p class="text-xs text-gray-500 mb-3">
-  Showing {{ programmes|length }} event{% if programmes|length != 1 %}s{% endif %}
+  {{ groups|length }} event{% if groups|length != 1 %}s{% endif %}
   {% if q or sport or channel %} (filtered){% endif %}
-  {% if programmes|length == 300 %} — showing first 300, use filters to narrow{% endif %}
+  {% if groups|length == 300 %} — use filters to narrow{% endif %}
 </p>
 
-{% if not programmes %}
+{% if not groups %}
 <div class="card text-center py-12">
   <p class="text-gray-400">No events match your filters</p>
 </div>
 {% else %}
 
-<!-- Table -->
 <div class="card p-0 overflow-hidden">
   <table class="w-full text-sm">
     <thead>
       <tr class="border-b border-border text-left">
         <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-36">Time</th>
         <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Title</th>
-        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-32">Channel</th>
+        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Channels</th>
         <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-28 text-right"></th>
       </tr>
     </thead>
     <tbody class="divide-y divide-border">
-      {% for p in programmes %}
-      {% set sport0 = p.categories[0] if p.categories else '' %}
+      {% for g in groups %}
       <tr class="hover:bg-white/[0.02] transition-colors group">
         <td class="px-4 py-3 text-gray-400 font-mono text-xs whitespace-nowrap">
-          <div class="text-gray-500">{{ p.start.astimezone().strftime('%a %b %-d') }}</div>
-          <div class="text-indigo-400 font-semibold text-sm">{{ p.start.astimezone().strftime('%-I:%M %p') }}</div>
+          <div class="text-gray-500">{{ g.start.astimezone().strftime('%a %b %-d') }}</div>
+          <div class="text-indigo-400 font-semibold text-sm">{{ g.start.astimezone().strftime('%-I:%M %p') }}</div>
         </td>
         <td class="px-4 py-3">
-          <div class="font-medium text-white">{{ p.title }}</div>
-          {% if p.categories %}
+          <div class="font-medium text-white">{{ g.title }}</div>
+          {% if g.categories %}
           <div class="mt-1 flex flex-wrap gap-1">
-            {% for cat in p.categories[:3] %}
+            {% for cat in g.categories[:3] %}
             <span class="tag bg-gray-700/50 text-gray-500">{{ cat }}</span>
             {% endfor %}
           </div>
           {% endif %}
         </td>
-        <td class="px-4 py-3 text-gray-500 text-xs">{{ p.channel_name }}</td>
+        <td class="px-4 py-3">
+          <div class="flex flex-wrap gap-1">
+            {% for num, name in g.channels %}
+            <span class="tag bg-gray-800 text-gray-400 border border-border text-xs">
+              {% if num %}<span class="text-gray-600 mr-0.5">{{ num }}</span>{% endif %}{{ name }}
+            </span>
+            {% endfor %}
+          </div>
+        </td>
         <td class="px-4 py-3 text-right">
           <button
             type="button"
             class="btn-ghost text-xs opacity-0 group-hover:opacity-100"
             @click="$store.subPanel.fill({
-              label: {{ p.title|tojson }},
-              sport: {{ sport0|tojson }},
-              channel: {{ p.channel_name|tojson }},
+              label: {{ g.title|tojson }},
+              sport: {{ g.sport_hint|tojson }},
+              channel: {{ g.channel_hint|tojson }},
               team: '',
               keyword: '',
               lead: ''

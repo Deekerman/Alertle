@@ -89,7 +89,15 @@
       <div>
         <label class="block text-xs text-gray-400 mb-1.5">Exclude keywords</label>
         <input name="exclude" class="field" placeholder="e.g. Women's, U20" />
-        <p class="text-[10px] text-gray-600 mt-1">Comma-separated — any match blocks the notification</p>
+        <p class="text-[10px] text-gray-600 mt-1">Comma-separated — any match blocks</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <input type="checkbox" name="require_sport" value="on" id="panel-require-sport"
+               class="w-4 h-4 rounded bg-surface border-border text-indigo-600" />
+        <label for="panel-require-sport" class="text-xs text-gray-400 cursor-pointer">
+          Require sports category
+          <span class="text-gray-600 block text-[10px]">Blocks movies/shows when using a team filter</span>
+        </label>
       </div>
 
       <p class="text-[10px] text-gray-600">Fill at least one of sport / team / keyword.</p>

@@ -24,16 +24,19 @@
         <td class="px-4 py-3 align-top">
           <div class="flex flex-wrap gap-1">
             {% if sub.sport %}
-            <span class="tag bg-blue-900/40 text-blue-300" title="sport">{{ sub.sport }}</span>
+            <span class="tag bg-blue-900/40 text-blue-300" title="sport">sport: {{ sub.sport }}</span>
             {% endif %}
             {% if sub.team %}
-            <span class="tag bg-green-900/40 text-green-300" title="team">{{ sub.team }}</span>
+            <span class="tag bg-green-900/40 text-green-300" title="team">team: {{ sub.team }}</span>
             {% endif %}
             {% if sub.keyword %}
-            <span class="tag bg-yellow-900/40 text-yellow-300" title="keyword">{{ sub.keyword }}</span>
+            <span class="tag bg-yellow-900/40 text-yellow-300" title="keyword">kw: {{ sub.keyword }}</span>
             {% endif %}
             {% if sub.channel %}
-            <span class="tag bg-gray-700/60 text-gray-400" title="channel">{{ sub.channel }}</span>
+            <span class="tag bg-gray-700/60 text-gray-400" title="channel">ch: {{ sub.channel }}</span>
+            {% endif %}
+            {% if sub.get('require_sport') %}
+            <span class="tag bg-orange-900/40 text-orange-400" title="requires sports category">⚽ sport only</span>
             {% endif %}
             {% if not sub.sport and not sub.team and not sub.keyword and not sub.channel %}
             <span class="text-gray-600 text-xs">—</span>

@@ -63,6 +63,14 @@
           </label>
           <input name="exclude" class="field" placeholder="e.g. Women's, U20, highlights" />
         </div>
+        <div class="col-span-2 flex items-center gap-3">
+          <label class="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" name="require_sport" value="on"
+                   class="w-4 h-4 rounded bg-surface border-border text-indigo-600" />
+            <span class="text-xs text-gray-400">Require sports category</span>
+          </label>
+          <p class="text-xs text-gray-600">Blocks non-sport content (movies, shows) when using a team filter</p>
+        </div>
         <div class="col-span-2 flex items-center justify-between mt-1">
           <p class="text-xs text-gray-600">All non-empty match fields are AND-ed. At least one of sport / team / keyword required.</p>
           <button type="submit" class="btn-primary ml-4 shrink-0">Add</button>

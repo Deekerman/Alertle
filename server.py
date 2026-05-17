@@ -187,6 +187,7 @@ async def add_subscription(
     keyword: str = Form(""),
     channel: str = Form(""),
     exclude: str = Form(""),
+    require_sport: str = Form(""),
     lead_time_minutes: str = Form(""),
 ):
     cfg = load_config()
@@ -203,6 +204,8 @@ async def add_subscription(
     exclude_list = [x.strip() for x in exclude.split(",") if x.strip()]
     if exclude_list:
         entry["exclude"] = exclude_list
+    if require_sport == "on":
+        entry["require_sport"] = True
     if lead_time_minutes.strip():
         try:
             entry["lead_time_minutes"] = int(lead_time_minutes)

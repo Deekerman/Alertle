@@ -47,19 +47,24 @@ class DispatcharrClient:
         return programmes
 
     def probe_api(self) -> dict:
-        """
-        Return a dict describing what the Dispatcharr API looks like at the
-        configured base URL. Used by the web UI to help diagnose connection issues.
-        """
+        """Hit every candidate path with every auth style and return a summary dict."""
+        token_value = self.session.headers.get("Authorization", "").split(" ", 1)[-1]
+        auth_variants = {
+            "Bearer": {"Authorization": f"Bearer {token_value}"},
+            "Token":  {"Authorization": f"Token {token_value}"},
+            "none":   {},
+        }
         results = {}
         for path in self._candidate_paths():
             url = self.base + path
-            try:
-                r = self.session.get(url, timeout=10)
-                snippet = r.text[:200].replace("\n", " ")
-                results[path] = {"status": r.status_code, "snippet": snippet}
-            except Exception as exc:
-                results[path] = {"status": None, "error": str(exc)}
+            for auth_name, headers in auth_variants.items():
+                key = f"{path}  [{auth_name}]"
+                try:
+                    r = self.session.get(url, headers=headers, timeout=10)
+                    snippet = r.text[:200].replace("\n", " ").strip()
+                    results[key] = {"status": r.status_code, "snippet": snippet}
+                except Exception as exc:
+                    results[key] = {"status": None, "error": str(exc)}
         return results
 
     # ------------------------------------------------------------------
@@ -68,76 +73,100 @@ class DispatcharrClient:
 
     @staticmethod
     def _candidate_paths() -> list[str]:
+        # Dispatcharr-specific output endpoints first, then generic XMLTV paths.
+        # Dispatcharr (Django-based) typically exposes output at /output/xmltv/
+        # and may use a UUID-keyed URL like /output/xmltv/<uuid>/
         return [
+            "/output/xmltv/",
+            "/output/xmltv",
+            "/api/output/xmltv/",
             "/api/epg/xmltv/",
             "/api/epg/xmltv",
             "/epg/xmltv/",
             "/epg/xmltv",
             "/xmltv/",
             "/xmltv",
-            "/api/xmltv/",
-            "/api/xmltv",
         ]
 
     def _fetch_xmltv(self) -> ET.Element:
-        """Try each candidate endpoint and return the first that parses as XMLTV."""
+        """Try each candidate endpoint (with both Bearer and Token auth) and
+        return the first response that parses as valid XMLTV."""
         last_exc: Optional[Exception] = None
+        attempted: list[str] = []
+
+        # Dispatcharr uses Django REST Framework which accepts "Token <key>"
+        # as well as "Bearer <key>". Try both auth styles per URL.
+        token_value = self.session.headers.get("Authorization", "").split(" ", 1)[-1]
+        auth_headers_to_try = [
+            {"Authorization": f"Bearer {token_value}"},
+            {"Authorization": f"Token {token_value}"},
+            {},  # some output endpoints are unauthenticated
+        ]
 
         for path in self._candidate_paths():
             url = self.base + path
-            try:
-                resp = self.session.get(url, timeout=60)
-            except requests.RequestException as exc:
-                last_exc = exc
-                log.debug("EPG endpoint %s — request failed: %s", url, exc)
-                continue
+            for auth in auth_headers_to_try:
+                try:
+                    resp = self.session.get(url, headers=auth, timeout=60)
+                except requests.RequestException as exc:
+                    last_exc = exc
+                    log.debug("EPG %s — request failed: %s", url, exc)
+                    break  # network error — no point retrying different auth
 
-            if resp.status_code != 200:
-                log.debug("EPG endpoint %s — HTTP %d", url, resp.status_code)
-                continue
+                if resp.status_code in (401, 403):
+                    log.debug("EPG %s — auth rejected (%d), trying next auth style", url, resp.status_code)
+                    continue
 
-            content = resp.content
-            content_type = resp.headers.get("Content-Type", "")
-            log.debug("EPG endpoint %s — %d bytes, Content-Type: %s", url, len(content), content_type)
+                if resp.status_code != 200:
+                    log.debug("EPG %s — HTTP %d", url, resp.status_code)
+                    break  # non-auth error — skip remaining auth variants
 
-            if not content:
-                log.debug("EPG endpoint %s — empty body, skipping", url)
-                continue
+                content = resp.content
+                content_type = resp.headers.get("Content-Type", "")
+                snippet = content[:400].decode("utf-8", errors="replace").strip()
+                attempted.append(f"{url}  [{resp.status_code}]  {snippet[:120]!r}")
 
-            # Sniff the response: log the first 300 chars to aid debugging
-            snippet = content[:300].decode("utf-8", errors="replace")
-            log.debug("EPG response snippet: %s", snippet)
+                if not content or not snippet:
+                    log.warning("EPG %s — 200 OK but empty body", url)
+                    break
 
-            # Try XMLTV parse
-            try:
-                root = ET.fromstring(content)
-                log.info("EPG loaded from %s", url)
-                return root
-            except ET.ParseError as exc:
-                # Not XML — check if it looks like JSON (Dispatcharr may return JSON)
+                # JSON response
                 if content.lstrip()[:1] in (b"{", b"["):
-                    log.debug("EPG endpoint %s returned JSON, attempting JSON→XMLTV conversion", url)
+                    log.debug("EPG %s — JSON response, converting", url)
                     try:
                         return self._json_to_xmltv(json.loads(content))
-                    except Exception as json_exc:
-                        log.debug("JSON EPG parse failed: %s", json_exc)
-                        last_exc = json_exc
-                else:
-                    log.debug(
-                        "EPG endpoint %s returned non-XML content (parse error: %s). "
-                        "First 300 chars: %s",
-                        url, exc, snippet,
+                    except Exception as exc:
+                        log.warning("EPG %s — JSON parse failed: %s", url, exc)
+                        last_exc = exc
+                        break
+
+                # XMLTV / XML response
+                try:
+                    root = ET.fromstring(content)
+                    log.info("EPG loaded from %s (auth: %s)", url,
+                             list(auth.keys())[0].replace("Authorization", "") if auth else "none")
+                    return root
+                except ET.ParseError as exc:
+                    log.warning(
+                        "EPG %s — 200 OK but not valid XML.\n"
+                        "  Parse error : %s\n"
+                        "  Response    : %s",
+                        url, exc, snippet[:300],
                     )
                     last_exc = exc
+                    break  # bad content — different auth won't help
 
+        summary = "\n".join(f"  {a}" for a in attempted) or "  (none reached 200 OK)"
         raise RuntimeError(
             f"Could not fetch a valid XMLTV feed from Dispatcharr at {self.base}.\n"
             f"Last error: {last_exc}\n\n"
+            f"Endpoints that returned 200 OK:\n{summary}\n\n"
             "Troubleshooting tips:\n"
-            "  • Confirm your Dispatcharr URL and API token in Settings\n"
-            "  • Check the URL ends with no trailing slash (e.g. http://192.168.1.x:8080)\n"
-            "  • In Dispatcharr, verify that at least one EPG source is configured and active\n"
-            "  • Run with --verbose to see each endpoint attempt in the logs"
+            "  • Use 'Test connection & probe endpoints' on the Settings page\n"
+            "  • Confirm your Dispatcharr URL and API token are correct\n"
+            "  • In Dispatcharr, check Settings → Output and copy the XMLTV URL exactly\n"
+            "  • If Dispatcharr shows a UUID in the XMLTV URL, set that full path as the URL\n"
+            "  • Verify at least one EPG source is mapped in Dispatcharr"
         )
 
     @staticmethod

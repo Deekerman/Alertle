@@ -1,0 +1,78 @@
+dispatcharr:
+  url: "http://localhost:8080"   # Dispatcharr base URL
+  token: "YOUR_API_TOKEN"        # API token from Dispatcharr settings
+  # EPG lookahead in days (scans from now until now + lookahead_days)
+  lookahead_days: 7
+
+# How often to poll when running in --daemon mode (seconds)
+poll_interval_seconds: 3600
+
+# How many minutes before event start to send the notification
+# Can be overridden per subscription
+default_lead_time_minutes: 30
+
+# ── Notification channels ───────────────────────────────────────────────────
+# Leave a section empty / comment it out to disable that channel.
+
+notifications:
+  telegram:
+    enabled: false
+    bot_token: "YOUR_BOT_TOKEN"
+    chat_id: "YOUR_CHAT_ID"
+
+  pushover:
+    enabled: false
+    app_token: "YOUR_APP_TOKEN"
+    user_key: "YOUR_USER_KEY"
+    # priority: 0  # -2 silent, -1 quiet, 0 normal, 1 high, 2 emergency
+
+  ntfy:
+    enabled: false
+    url: "https://ntfy.sh"          # or your self-hosted instance
+    topic: "epg-sports"
+    # token: ""                     # only needed for private topics
+
+  discord:
+    enabled: false
+    webhook_url: "https://discord.com/api/webhooks/..."
+
+  smtp:
+    enabled: false
+    host: "smtp.example.com"
+    port: 587
+    username: "user@example.com"
+    password: "YOUR_PASSWORD"
+    from_addr: "user@example.com"
+    to_addrs:
+      - "you@example.com"
+    use_tls: true
+
+# ── Watch list ──────────────────────────────────────────────────────────────
+# Each entry is a subscription rule. All matching events will trigger a
+# notification. Rules are OR-ed; within a rule, all fields are AND-ed.
+#
+# Fields:
+#   sport   – match the EPG category/genre (case-insensitive substring)
+#   team    – match anywhere in the programme title or description
+#   keyword – match anywhere in title or description (fallback / freeform)
+#   channel – restrict to a specific channel name or id (optional)
+#   lead_time_minutes – override default lead time for this rule (optional)
+#   label   – friendly name shown in the notification
+
+subscriptions:
+  - label: "All NFL games"
+    sport: "american football"
+
+  - label: "Dallas Cowboys"
+    team: "Cowboys"
+
+  - label: "Champions League"
+    keyword: "Champions League"
+    lead_time_minutes: 60
+
+  # - label: "All Hockey"
+  #   sport: "ice hockey"
+
+  # - label: "Lakers games"
+  #   team: "Lakers"
+  #   channel: "ESPN"

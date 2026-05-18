@@ -127,6 +127,36 @@
         close() { this.open = false; this.idx = null; }
       });
 
+      Alpine.store('previewModal', {
+        open: false,
+        notifTitle: '', notifBody: '', notifVia: '', subLabel: '',
+        sending: false,
+        show(data) {
+          const tpl = window.NOTIF_TEMPLATES || { title: '[{rule}] {title}', body: '' };
+          const render = (t, v) => t.replace(/\{(\w+)\}/g, (_, k) => v[k] ?? '');
+          this.notifTitle = render(tpl.title, data);
+          this.notifBody  = render(tpl.body,  data).trimEnd();
+          this.notifVia   = data.notify_channels || '';
+          this.subLabel   = data.rule;
+          this.open = true;
+        },
+        close() { this.open = false; },
+        async sendTest() {
+          this.sending = true;
+          const form = new FormData();
+          form.append('notif_title', this.notifTitle);
+          form.append('notif_body',  this.notifBody);
+          form.append('sub_label',   this.subLabel);
+          try {
+            const resp = await fetch('/action/preview-send', { method: 'POST', body: form });
+            const msg = resp.headers.get('X-Toast') || (resp.ok ? 'Sent!' : 'Send failed');
+            window.dispatchEvent(new CustomEvent('show-toast', { detail: { msg } }));
+          } catch { window.dispatchEvent(new CustomEvent('show-toast', { detail: { msg: 'Network error' } })); }
+          this.sending = false;
+          this.open = false;
+        },
+      });
+
       Alpine.store('subManager', {
         selected: [],
         toggle(idx) {

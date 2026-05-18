@@ -371,6 +371,27 @@ async def bulk_delete_subscriptions(request: Request, indices: str = Form("")):
     return _sub_response(request, subs, f"Removed {count} {noun}", cfg)
 
 
+@app.post("/partial/subscriptions/edit", response_class=HTMLResponse)
+async def update_subscription_edit(
+    request: Request,
+    idx: int = Form(...),
+    label: str = Form(...),
+    sport: str = Form(""), team: str = Form(""), keyword: str = Form(""),
+    channel: str = Form(""), title_pattern: str = Form(""),
+    subtitle_pattern: str = Form(""), desc_pattern: str = Form(""),
+    exclude: str = Form(""), require_sport: str = Form(""),
+    lead_time_minutes: str = Form(""), notify_channels: str = Form(""),
+):
+    cfg = load_config()
+    subs = cfg.get("subscriptions", [])
+    if 0 <= idx < len(subs):
+        subs[idx] = _build_sub_entry(label, sport, team, keyword, channel,
+                                     title_pattern, subtitle_pattern, desc_pattern,
+                                     exclude, require_sport, lead_time_minutes, notify_channels)
+        save_config(cfg)
+    return _sub_response(request, subs, f"Saved: {label}", cfg)
+
+
 @app.post("/partial/subscriptions/{idx}", response_class=HTMLResponse)
 async def update_subscription(
     request: Request, idx: int,

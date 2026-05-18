@@ -45,4 +45,39 @@
   </div>
 </div>
 
+<!-- Preview modal — lives outside the HTMX swap area so Alpine state persists -->
+<div x-show="$store.previewModal.open" x-cloak
+     class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center"
+     @click.self="$store.previewModal.close()"
+     @keydown.escape.window="$store.previewModal.close()">
+  <div class="bg-surface border border-border rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+    <div class="flex items-center justify-between mb-4">
+      <p class="text-sm font-semibold text-white">Notification Preview</p>
+      <button @click="$store.previewModal.close()" class="text-muted hover:text-gray-300 transition-colors">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="bg-bg rounded-lg px-3 py-2.5 mb-3">
+      <p class="text-[10px] text-muted uppercase tracking-wide mb-1">Title</p>
+      <p class="text-sm font-semibold text-white" x-text="$store.previewModal.notifTitle"></p>
+    </div>
+    <div class="bg-bg rounded-lg px-3 py-2.5 mb-4">
+      <p class="text-[10px] text-muted uppercase tracking-wide mb-1">Body</p>
+      <pre class="text-xs text-gray-300 whitespace-pre-wrap font-sans leading-relaxed" x-text="$store.previewModal.notifBody"></pre>
+    </div>
+    <p class="text-xs text-muted mb-4">
+      Sends via: <span class="text-gray-300" x-text="$store.previewModal.notifVia || 'all enabled channels'"></span>
+    </p>
+    <div class="flex justify-end gap-2">
+      <button @click="$store.previewModal.close()" class="btn-ghost text-xs">Close</button>
+      <button @click="$store.previewModal.sendTest()" :disabled="$store.previewModal.sending" class="btn-primary text-xs">
+        <span x-show="!$store.previewModal.sending">Send test notification</span>
+        <span x-show="$store.previewModal.sending">Sending…</span>
+      </button>
+    </div>
+  </div>
+</div>
+
 {% endblock %}

@@ -179,12 +179,13 @@
     </div>
 
     <form
-      :hx-post="`/partial/subscriptions/${$store.subEdit.idx}`"
+      hx-post="/partial/subscriptions/edit"
       hx-target="#sub-list"
       hx-swap="outerHTML"
       @htmx:after-request="if($event.detail.successful){ $store.subEdit.close(); $store.subManager.clear(); }"
       class="flex-1 overflow-auto px-5 py-5 space-y-4"
     >
+      <input type="hidden" name="idx" :value="$store.subEdit.idx" />
       <div>
         <label class="form-label">Label <span class="text-red-400 font-normal">*</span></label>
         <input name="label" :value="$store.subEdit.label" required class="field" />

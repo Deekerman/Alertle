@@ -79,6 +79,8 @@ def _preview_vars_filter(g) -> dict:
     show_nums = cfg.get("notification_template", {}).get("show_channel_nums", False)
     vars_ = build_preview_vars(g, show_channel_nums=show_nums)
     vars_["notify_channels"] = ", ".join(g.subscription.notify_channels)
+    vars_["sub_notif_title_template"] = g.subscription.notif_title_template or ""
+    vars_["sub_notif_body_template"] = g.subscription.notif_body_template or ""
     return vars_
 
 
@@ -307,6 +309,7 @@ def _build_sub_entry(
     title_pattern: str, subtitle_pattern: str, desc_pattern: str,
     exclude: str, require_sport: str, lead_time_minutes: str,
     notify_channels: str = "",
+    notif_title_tpl: str = "", notif_body_tpl: str = "",
 ) -> dict:
     entry: dict = {"label": label.strip()}
     for key, val in [("sport", sport), ("team", team), ("keyword", keyword),
@@ -327,6 +330,10 @@ def _build_sub_entry(
     ch_list = [c.strip() for c in notify_channels.split(",") if c.strip()]
     if ch_list:
         entry["notify_channels"] = ch_list
+    if notif_title_tpl.strip():
+        entry["notif_title_template"] = notif_title_tpl.strip()
+    if notif_body_tpl.strip():
+        entry["notif_body_template"] = notif_body_tpl.strip()
     return entry
 
 
@@ -350,12 +357,14 @@ async def add_subscription(
     subtitle_pattern: str = Form(""), desc_pattern: str = Form(""),
     exclude: str = Form(""), require_sport: str = Form(""),
     lead_time_minutes: str = Form(""), notify_channels: str = Form(""),
+    notif_title_tpl: str = Form(""), notif_body_tpl: str = Form(""),
 ):
     cfg = load_config()
     subs = cfg.setdefault("subscriptions", [])
     subs.append(_build_sub_entry(label, sport, team, keyword, channel,
                                  title_pattern, subtitle_pattern, desc_pattern,
-                                 exclude, require_sport, lead_time_minutes, notify_channels))
+                                 exclude, require_sport, lead_time_minutes, notify_channels,
+                                 notif_title_tpl, notif_body_tpl))
     save_config(cfg)
     return _sub_response(request, subs, f"Added: {label}", cfg)
 
@@ -386,13 +395,15 @@ async def update_subscription_edit(
     subtitle_pattern: str = Form(""), desc_pattern: str = Form(""),
     exclude: str = Form(""), require_sport: str = Form(""),
     lead_time_minutes: str = Form(""), notify_channels: str = Form(""),
+    notif_title_tpl: str = Form(""), notif_body_tpl: str = Form(""),
 ):
     cfg = load_config()
     subs = cfg.get("subscriptions", [])
     if 0 <= idx < len(subs):
         subs[idx] = _build_sub_entry(label, sport, team, keyword, channel,
                                      title_pattern, subtitle_pattern, desc_pattern,
-                                     exclude, require_sport, lead_time_minutes, notify_channels)
+                                     exclude, require_sport, lead_time_minutes, notify_channels,
+                                     notif_title_tpl, notif_body_tpl)
         save_config(cfg)
     return _sub_response(request, subs, f"Saved: {label}", cfg)
 

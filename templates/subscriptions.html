@@ -266,6 +266,24 @@
         <input type="hidden" name="notify_channels" :value="$store.subEdit.notify_channels.join(',')" />
       </div>
       {% endif %}
+      <div class="border-t border-border pt-4 space-y-3">
+        <div>
+          <p class="text-xs font-medium text-gray-300 mb-0.5">Custom notification message</p>
+          <p class="form-hint mb-2">Leave blank to use the global template from Settings.</p>
+        </div>
+        <div>
+          <label class="form-label">Title</label>
+          <input name="notif_title_tpl" :value="$store.subEdit.notif_title_tpl"
+                 class="field font-mono" placeholder="(global default)" />
+        </div>
+        <div>
+          <label class="form-label">Body</label>
+          <textarea name="notif_body_tpl" class="field font-mono" rows="3"
+                    placeholder="(global default)"
+                    x-effect="$el.value = $store.subEdit.notif_body_tpl"
+                    @input="$store.subEdit.notif_body_tpl = $el.value"></textarea>
+        </div>
+      </div>
       <div class="pt-2 pb-4">
         <button type="submit" class="btn-primary w-full justify-center">Save changes</button>
       </div>

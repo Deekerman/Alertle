@@ -49,6 +49,9 @@
             {% endfor %}
           </div>
           {% endif %}
+          {% if sub.get('notif_title_template') or sub.get('notif_body_template') %}
+          <span class="pill bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] mt-1.5">custom template</span>
+          {% endif %}
         </td>
         <td class="px-4 py-4 align-top">
           <div class="flex flex-wrap gap-1">

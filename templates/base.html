@@ -108,6 +108,7 @@
         label:'', sport:'', team:'', keyword:'', channel:'',
         title_pattern:'', subtitle_pattern:'', desc_pattern:'',
         exclude:'', require_sport: false, lead:'', notify_channels: [],
+        notif_title_tpl: '', notif_body_tpl: '',
         fill(idx, data) {
           this.idx = idx;
           this.label            = data.label            || '';
@@ -122,6 +123,8 @@
           this.require_sport    = !!data.require_sport;
           this.lead = data.lead_time_minutes != null ? String(data.lead_time_minutes) : '';
           this.notify_channels  = Array.isArray(data.notify_channels) ? data.notify_channels : [];
+          this.notif_title_tpl  = data.notif_title_template || '';
+          this.notif_body_tpl   = data.notif_body_template  || '';
           this.open = true;
         },
         close() { this.open = false; this.idx = null; }
@@ -132,7 +135,11 @@
         notifTitle: '', notifBody: '', notifVia: '', subLabel: '',
         sending: false,
         show(data) {
-          const tpl = window.NOTIF_TEMPLATES || { title: '[{rule}] {title}', body: '' };
+          const global = window.NOTIF_TEMPLATES || { title: '[{rule}] {title}', body: '' };
+          const tpl = {
+            title: data.sub_notif_title_template || global.title,
+            body:  data.sub_notif_body_template  || global.body,
+          };
           const render = (t, v) => t.replace(/\{(\w+)\}/g, (_, k) => v[k] ?? '');
           this.notifTitle = render(tpl.title, data);
           this.notifBody  = render(tpl.body,  data).trimEnd();

@@ -354,8 +354,8 @@
         <div class="col-span-2">
           <label class="flex items-center gap-2.5 cursor-pointer select-none">
             <input type="checkbox" name="smtp_use_tls" value="on" class="toggle"
-                   {% if sm.get('use_tls', true) %}checked{% endif %} />
-            <span class="text-xs text-gray-300">Use STARTTLS</span>
+                   {% if sm.get('use_tls') %}checked{% endif %} />
+            <span class="text-xs text-gray-300">Use STARTTLS <span class="text-muted font-normal">(disable for local/unauthenticated servers)</span></span>
           </label>
         </div>
       </div>

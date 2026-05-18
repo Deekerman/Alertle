@@ -130,8 +130,9 @@ def save_config(cfg: dict) -> None:
 
 _CHANNEL_LABELS = [
     ("telegram", "Telegram"), ("pushover", "Pushover"),
-    ("ntfy", "Ntfy"), ("discord", "Discord"), ("smtp", "Email"),
+    ("ntfy", "Ntfy"), ("discord", "Discord"),
 ]
+
 
 
 def _validate_url(url: str) -> str:
@@ -181,13 +182,6 @@ def _send_to_channels(title: str, body: str, channels: list[str], cfg: dict) -> 
             elif ch == "discord":
                 from notifiers.discord import DiscordNotifier
                 DiscordNotifier(n["discord"]["webhook_url"]).send(title, body)
-            elif ch == "smtp":
-                from notifiers.smtp import SmtpNotifier
-                s = n["smtp"]
-                SmtpNotifier(
-                    s["host"], s["port"], s["username"], s["password"],
-                    s["from_addr"], s["to_addrs"], s.get("use_tls", True),
-                ).send(title, body)
         except Exception as exc:
             errors.append(f"{ch}: {exc}")
     return errors
@@ -597,22 +591,6 @@ async def save_settings(request: Request):
             dc["webhook_url"] = _validate_url(form.get("discord_webhook_url").strip())
         except ValueError as exc:
             return Response(status_code=400, headers={"X-Toast": str(exc)})
-
-    # SMTP
-    sm = n.setdefault("smtp", {})
-    sm["enabled"] = form.get("smtp_enabled") == "on"
-    for key, fkey in [("host", "smtp_host"), ("username", "smtp_username"),
-                      ("password", "smtp_password"), ("from_addr", "smtp_from_addr")]:
-        if form.get(fkey):
-            sm[key] = form.get(fkey).strip()
-    try:
-        sm["port"] = int(form.get("smtp_port", 587))
-    except ValueError:
-        pass
-    sm["use_tls"] = form.get("smtp_use_tls") == "on"
-    to_addrs = [a.strip() for a in form.get("smtp_to_addrs", "").split("\n") if a.strip()]
-    if to_addrs:
-        sm["to_addrs"] = to_addrs
 
     save_config(cfg)
     bust_cache()

@@ -32,7 +32,7 @@
     <tbody>
       {% for sub in subscriptions %}
       <tr class="border-b border-border/50 last:border-0 transition-colors group"
-          :class="$store.subManager.has({{ loop.index0 }}) ? 'bg-indigo-950/30' : 'hover:bg-white/[0.015]'"
+          :class="$store.subManager.has({{ loop.index0 }}) ? 'bg-indigo-950/30' : 'hover:bg-white/[0.03]'"
           data-sub="{{ sub|tojson|e }}">
         <td class="px-4 py-4 align-top">
           <input type="checkbox" class="toggle"

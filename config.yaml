@@ -52,17 +52,6 @@ notifications:
     enabled: false
     webhook_url: "https://discord.com/api/webhooks/..."
 
-  smtp:
-    enabled: false
-    host: "smtp.example.com"
-    port: 587
-    username: "user@example.com"
-    password: "YOUR_PASSWORD"
-    from_addr: "user@example.com"
-    to_addrs:
-      - "you@example.com"
-    use_tls: true
-
 # ── Watch list ──────────────────────────────────────────────────────────────
 # Each entry is a subscription rule. All matching events will trigger a
 # notification. Rules are OR-ed; within a rule, all fields are AND-ed.

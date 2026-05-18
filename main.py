@@ -52,15 +52,6 @@ def build_notifiers_map(cfg: dict) -> dict[str, BaseNotifier]:
         from notifiers.discord import DiscordNotifier
         result["discord"] = DiscordNotifier(n["discord"]["webhook_url"])
 
-    if n.get("smtp", {}).get("enabled"):
-        from notifiers.smtp import SmtpNotifier
-        s = n["smtp"]
-        result["smtp"] = SmtpNotifier(
-            host=s["host"], port=s["port"], username=s["username"],
-            password=s["password"], from_addr=s["from_addr"],
-            to_addrs=s["to_addrs"], use_tls=s.get("use_tls", True),
-        )
-
     return result
 
 

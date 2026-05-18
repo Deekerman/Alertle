@@ -307,61 +307,6 @@
       </div>
     </section>
 
-    <!-- SMTP -->
-    {% set sm = notifs.get('smtp', {}) %}
-    <section class="card overflow-hidden" x-data="{ open: {{ 'true' if sm.get('enabled') else 'false' }} }">
-      <div class="flex items-center justify-between px-5 py-4">
-        <div class="flex items-center gap-3">
-          <label class="relative inline-flex items-center cursor-pointer" @click.stop>
-            <input type="checkbox" name="smtp_enabled" value="on" class="sr-only peer" {% if sm.get('enabled') %}checked{% endif %}>
-            <div class="w-8 h-4 rounded-full bg-border peer-checked:bg-indigo-600 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:w-3 after:h-3 after:transition-all peer-checked:after:translate-x-4"></div>
-          </label>
-          <p class="text-sm font-medium text-gray-100">Email / SMTP</p>
-        </div>
-        <div class="flex items-center gap-2">
-          <span id="test-result-smtp" class="text-xs"></span>
-          <button type="button" hx-post="/action/test/smtp" hx-target="#test-result-smtp" hx-swap="innerHTML" class="btn-ghost text-xs py-1">Test</button>
-          <button type="button" @click="open = !open" class="text-muted hover:text-gray-300 p-1">
-            <svg class="w-4 h-4 transition-transform duration-150" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m19 9-7 7-7-7"/></svg>
-          </button>
-        </div>
-      </div>
-      <div x-show="open" x-cloak class="px-5 pb-5 border-t border-border pt-4 grid grid-cols-2 gap-4">
-        <div>
-          <label class="form-label">Host</label>
-          <input name="smtp_host" class="field" value="{{ sm.get('host', '') }}" placeholder="smtp.example.com" />
-        </div>
-        <div>
-          <label class="form-label">Port</label>
-          <input name="smtp_port" class="field" type="number" value="{{ sm.get('port', 587) }}" />
-        </div>
-        <div>
-          <label class="form-label">Username</label>
-          <input name="smtp_username" class="field" value="{{ sm.get('username', '') }}" />
-        </div>
-        <div>
-          <label class="form-label">Password</label>
-          <input name="smtp_password" class="field" type="password" value="{{ sm.get('password', '') }}" />
-        </div>
-        <div>
-          <label class="form-label">From</label>
-          <input name="smtp_from_addr" class="field" value="{{ sm.get('from_addr', '') }}" placeholder="you@example.com" />
-        </div>
-        <div>
-          <label class="form-label">To (one per line)</label>
-          <textarea name="smtp_to_addrs" class="field" rows="2"
-            placeholder="recipient@example.com">{{ sm.get('to_addrs', [])|join('\n') }}</textarea>
-        </div>
-        <div class="col-span-2">
-          <label class="flex items-center gap-2.5 cursor-pointer select-none">
-            <input type="checkbox" name="smtp_use_tls" value="on" class="toggle"
-                   {% if sm.get('use_tls') %}checked{% endif %} />
-            <span class="text-xs text-gray-300">Use STARTTLS <span class="text-muted font-normal">(disable for local/unauthenticated servers)</span></span>
-          </label>
-        </div>
-      </div>
-    </section>
-
     <!-- Save -->
     <div class="flex justify-end pt-2">
       <button type="submit" class="btn-primary px-8">Save Settings</button>

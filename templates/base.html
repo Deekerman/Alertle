@@ -10,10 +10,10 @@
       theme: {
         extend: {
           colors: {
-            bg:      '#0f111a',
-            surface: '#161b27',
-            panel:   '#0d1016',
-            border:  '#1e2537',
+            bg:      '#0c0e17',
+            surface: '#131929',
+            panel:   '#0a0c14',
+            border:  '#1d2a45',
             muted:   '#8892a8',
             accent:  '#6366f1',
           },
@@ -28,12 +28,13 @@
   <script src="https://unpkg.com/alpinejs@3.13.5/dist/cdn.min.js" defer></script>
   <style>
     [x-cloak] { display: none !important; }
-    html, body { background-color: #0f111a; }
+    html { background-color: #0c0e17; }
+    body { background: linear-gradient(180deg, #0c0e17 0%, #0d101d 100%); }
 
     ::-webkit-scrollbar { width: 5px; height: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #1e2537; border-radius: 99px; }
-    ::-webkit-scrollbar-thumb:hover { background: #2a3350; }
+    ::-webkit-scrollbar-thumb { background: #1d2a45; border-radius: 99px; }
+    ::-webkit-scrollbar-thumb:hover { background: #2a3a5a; }
 
     .htmx-indicator { opacity: 0; transition: opacity 150ms; }
     .htmx-request .htmx-indicator,
@@ -47,9 +48,14 @@
     select.field { @apply cursor-pointer; }
 
     .btn-primary {
-      @apply inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-500
-             text-white text-sm font-medium rounded-lg transition-colors cursor-pointer
+      @apply inline-flex items-center gap-1.5 px-4 py-2
+             text-white text-sm font-medium rounded-lg transition-all cursor-pointer
              disabled:opacity-50 disabled:cursor-not-allowed;
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+    }
+    .btn-primary:hover {
+      box-shadow: 0 0 12px rgba(99,102,241,0.4);
+      filter: brightness(1.1);
     }
     .btn-secondary {
       @apply inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border
@@ -65,10 +71,12 @@
              hover:bg-red-900/20 text-xs rounded-lg transition-colors cursor-pointer;
     }
 
-    .card { @apply bg-surface border border-border rounded-xl; }
+    .card { @apply bg-surface border border-border rounded-xl; box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
 
     .pill {
-      @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium;
+      @apply inline-flex items-center gap-1 rounded-full font-medium;
+      font-size: 11px;
+      padding: 1px 7px;
     }
 
     .form-label {
@@ -84,8 +92,9 @@
 
     /* Nav active indicator */
     .nav-active {
-      background: linear-gradient(90deg, rgba(99,102,241,0.15) 0%, rgba(99,102,241,0.05) 100%);
-      border-left: 2px solid #6366f1;
+      background: linear-gradient(90deg, rgba(99,102,241,0.15) 0%, rgba(99,102,241,0.03) 100%);
+      border-left: 2px solid transparent;
+      border-image: linear-gradient(180deg, #6366f1, #7c3aed) 1;
     }
   </style>
 </head>
@@ -184,7 +193,7 @@
     <!-- Logo -->
     <div class="px-5 py-5">
       <div class="flex items-center gap-3">
-        <div class="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
+        <div class="w-8 h-8 rounded-lg border border-indigo-500/30 flex items-center justify-center shrink-0" style="background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(79,70,229,0.12))">
           <svg class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6 20.25h12m-7.5-3v3m3-3v3m-10.125-3h17.25c.621 0 1.125-.504 1.125-1.125V4.875c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125Z"/>
           </svg>

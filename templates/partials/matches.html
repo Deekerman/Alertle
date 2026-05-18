@@ -1,3 +1,7 @@
+<style>
+  .event-row { border-left: 2px solid transparent; }
+  .event-row:hover { background: rgba(255,255,255,0.018); border-left-color: #6366f1; }
+</style>
 {% if error %}
 <div class="card p-5 border-red-900/50 bg-red-950/20">
   <div class="flex items-start gap-3">
@@ -39,7 +43,7 @@
     <div class="flex items-center gap-2 mb-1">
       <p class="text-xs text-muted">Next up</p>
       {% if first_state == 'in' %}
-      <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-bold tracking-wide bg-red-500/15 text-red-400 border border-red-500/30">
+      <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-bold tracking-wide bg-red-500/25 text-red-300 border border-red-500/30">
         <span class="relative flex h-1.5 w-1.5">
           <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
           <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-400"></span>
@@ -74,7 +78,7 @@
       {% for g in grouped %}
       {% set dur = ((g.stop - g.start).total_seconds() / 60)|int %}
       {% set espn_state = espn_states.get(g.group_uid) %}
-      <tr class="border-b border-border/50 hover:bg-white/[0.015] transition-colors last:border-0 group
+      <tr class="border-b border-border/50 transition-all last:border-0 group event-row
                  {{ 'bg-red-950/20' if espn_state == 'in' else '' }}"
           data-preview="{{ g|preview_vars|tojson|e }}">
         <td class="px-5 py-4 align-top">
@@ -85,7 +89,7 @@
           <div class="flex items-center gap-2">
             <p class="font-medium text-gray-100 leading-snug">{{ g.title }}</p>
             {% if espn_state == 'in' %}
-            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-bold tracking-wide bg-red-500/15 text-red-400 border border-red-500/30 shrink-0">
+            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-bold tracking-wide bg-red-500/25 text-red-300 border border-red-500/30 shrink-0">
               <span class="relative flex h-1.5 w-1.5">
                 <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                 <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-400"></span>

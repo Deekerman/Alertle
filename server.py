@@ -90,7 +90,7 @@ class _SecurityHeaders(BaseHTTPMiddleware):
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' https://cdn.tailwindcss.com https://unpkg.com 'unsafe-inline'; "
+            "script-src 'self' https://cdn.tailwindcss.com https://unpkg.com 'unsafe-inline' 'unsafe-eval'; "
             "style-src 'self' 'unsafe-inline';"
         )
         return response

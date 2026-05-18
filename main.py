@@ -146,7 +146,7 @@ def _dispatch(notifiers_map: dict[str, BaseNotifier], sub_channels: list[str], t
 def main():
     parser = argparse.ArgumentParser(description="EPG sports/game notifier for Dispatcharr")
     parser.add_argument("--config", default="config.yaml", help="Path to config.yaml")
-    parser.add_argument("--db", default="epg_notifier.db", help="Path to SQLite database")
+    parser.add_argument("--db", default="alertle.db", help="Path to SQLite database")
     parser.add_argument("--dry-run", action="store_true", help="Print matches without sending or storing")
     parser.add_argument("--daemon", action="store_true", help="Run continuously on poll_interval_seconds")
     parser.add_argument("--list", action="store_true", help="List upcoming matched events and exit")
@@ -181,7 +181,7 @@ def main():
             try:
                 cfg = load_config(args.config)
                 notifiers_map = build_notifiers_map(cfg)
-                interval = cfg.get("poll_interval_seconds", 3600)
+                interval = cfg.get("poll_interval_seconds", 300)
                 run_scan(cfg, notifiers_map, store, dry_run=args.dry_run)
             except Exception as exc:
                 log.error("Scan error: %s", exc)

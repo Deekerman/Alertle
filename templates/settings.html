@@ -46,7 +46,8 @@
         <div>
           <label class="form-label">Daemon poll interval (sec)</label>
           <input name="poll_interval_seconds" class="field" type="number" min="60"
-                 value="{{ cfg.get('poll_interval_seconds', 3600) }}" />
+                 value="{{ cfg.get('poll_interval_seconds', 300) }}" />
+          <p class="form-hint">Default: 300 (5 min) — notifications fire within one interval of lead time</p>
         </div>
       </div>
 

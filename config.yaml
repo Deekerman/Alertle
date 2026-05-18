@@ -8,7 +8,7 @@ dispatcharr:
   lookahead_days: 7
 
 # How often to poll when running in --daemon mode (seconds)
-poll_interval_seconds: 3600
+poll_interval_seconds: 300
 
 # How many minutes before event start to send the notification
 # Can be overridden per subscription

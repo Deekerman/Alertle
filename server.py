@@ -30,7 +30,7 @@ from notifiers.base import (
 from storage import NotificationStore
 
 CONFIG_PATH = ROOT / "config.yaml"
-DB_PATH = ROOT / "epg_notifier.db"
+DB_PATH = ROOT / "alertle.db"
 
 
 def _category_color(categories: list[str]) -> str:
@@ -69,7 +69,7 @@ def _category_color(categories: list[str]) -> str:
     return "text-gray-400"
 
 log = logging.getLogger(__name__)
-app = FastAPI(title="EPG Notifier")
+app = FastAPI(title="Alertle")
 templates = Jinja2Templates(directory=str(ROOT / "templates"))
 templates.env.filters["tojson"] = lambda v: json.dumps(v)
 templates.env.filters["category_color"] = _category_color
@@ -502,7 +502,7 @@ async def save_settings(request: Request):
     except ValueError:
         pass
     try:
-        cfg["poll_interval_seconds"] = int(form.get("poll_interval_seconds", 3600))
+        cfg["poll_interval_seconds"] = int(form.get("poll_interval_seconds", 300))
     except ValueError:
         pass
     cfg["espn_verify"] = form.get("espn_verify") == "on"
@@ -581,8 +581,8 @@ async def save_settings(request: Request):
 async def test_notification(channel: str):
     cfg = load_config()
     errors = _send_to_channels(
-        "EPG Notifier — Test",
-        "This is a test notification from EPG Notifier.",
+        "Alertle — Test",
+        "This is a test notification from Alertle.",
         [channel], cfg,
     )
     if errors:
@@ -637,7 +637,7 @@ async def _auto_scan_loop():
     await asyncio.sleep(15)  # brief delay to let the server finish starting up
     while True:
         cfg = load_config()
-        interval = cfg.get("poll_interval_seconds", 3600)
+        interval = cfg.get("poll_interval_seconds", 300)
         log.info("Auto-scan triggered (interval: %ds)", interval)
         _do_scan()
         await asyncio.sleep(interval)
@@ -653,7 +653,7 @@ async def start_auto_scanner():
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="EPG Notifier web UI")
+    parser = argparse.ArgumentParser(description="Alertle web UI")
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=8888)
     parser.add_argument("--config", default=str(CONFIG_PATH))

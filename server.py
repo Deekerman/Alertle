@@ -134,7 +134,6 @@ _CHANNEL_LABELS = [
 ]
 
 
-
 def _validate_url(url: str) -> str:
     """Reject non-http(s) schemes to prevent SSRF via file://, ftp://, etc."""
     from urllib.parse import urlparse

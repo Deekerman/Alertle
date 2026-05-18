@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 class NotificationStore:
-    def __init__(self, db_path: str = "epg_notifier.db"):
+    def __init__(self, db_path: str = "alertle.db"):
         self.path = Path(db_path)
         self._init_db()
 

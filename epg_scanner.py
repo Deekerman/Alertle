@@ -210,6 +210,11 @@ class DispatcharrClient:
                 number = lcn_el.text.strip()
 
             name = text_names[0] if text_names else (display_names[0] if display_names else cid)
+
+            # Fall back to using the channel id as the number if it looks numeric
+            if not number and cid.replace(".", "").isdigit():
+                number = cid
+
             channels[cid] = (name, number)
         return channels
 

@@ -155,7 +155,8 @@ async def partial_matches(request: Request):
             cfg.get("subscriptions", []),
             cfg.get("default_lead_time_minutes", 30),
         )
-        grouped = group_matches(find_matches(programmes, subs))
+        from espn import filter_replays
+        grouped = filter_replays(group_matches(find_matches(programmes, subs)), cfg)
     except Exception as exc:
         error = str(exc)
         grouped = []
@@ -347,6 +348,7 @@ async def save_settings(request: Request):
         cfg["poll_interval_seconds"] = int(form.get("poll_interval_seconds", 3600))
     except ValueError:
         pass
+    cfg["espn_verify"] = form.get("espn_verify") == "on"
 
     n = cfg.setdefault("notifications", {})
 

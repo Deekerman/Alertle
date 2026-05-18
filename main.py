@@ -91,9 +91,11 @@ def run_scan(cfg: dict, notifiers: list[BaseNotifier], store: NotificationStore,
     programmes = client.fetch_programmes(now, window_end)
 
     matches = find_matches(programmes, subscriptions)
-    # Group same event on multiple channels into one notification
     grouped = group_matches(matches)
     log.info("Found %d unique events (%d channel slots matched)", len(grouped), len(matches))
+
+    from espn import filter_replays
+    grouped = filter_replays(grouped, cfg)
 
     sent_count = 0
     for g in grouped:

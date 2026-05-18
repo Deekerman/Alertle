@@ -183,7 +183,11 @@ def bust_cache() -> None:
 
 @app.get("/", response_class=HTMLResponse)
 async def page_dashboard(request: Request):
-    return templates.TemplateResponse(request, "dashboard.html", {"page": "dashboard"})
+    cfg = load_config()
+    return templates.TemplateResponse(request, "dashboard.html", {
+        "page": "dashboard",
+        "notification_template": _notif_template(cfg),
+    })
 
 
 @app.get("/browse", response_class=HTMLResponse)
@@ -234,7 +238,6 @@ async def partial_matches(request: Request):
         espn_states = {}
     return templates.TemplateResponse(request, "partials/matches.html", {
         "grouped": grouped, "error": error, "espn_states": espn_states,
-        "notification_template": _notif_template(cfg),
     })
 
 
@@ -579,7 +582,7 @@ async def test_notification(channel: str):
 @app.post("/action/preview-send")
 async def preview_send(
     notif_title: str = Form(...),
-    notif_body: str = Form(...),
+    notif_body: str = Form(""),
     sub_label: str = Form(""),
 ):
     cfg = load_config()

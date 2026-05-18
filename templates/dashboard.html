@@ -81,3 +81,12 @@
 </div>
 
 {% endblock %}
+
+{% block extra_scripts %}
+<script>
+window.NOTIF_TEMPLATES = {
+  title: {{ notification_template.title | tojson }},
+  body: {{ notification_template.body | tojson }},
+};
+</script>
+{% endblock %}

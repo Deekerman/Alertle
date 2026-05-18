@@ -167,6 +167,7 @@ class GroupedMatch:
     title: str
     start: object
     stop: object
+    subtitle: str
     description: str
     categories: list[str]
     channels: list[tuple[str, str]]
@@ -238,10 +239,12 @@ def group_matches(matches: list[Match]) -> list[GroupedMatch]:
         main_title = min((m.programme.title for m in ms), key=len)
         cats = filter_categories(rep.categories)
         channels = [(m.programme.channel_number, m.programme.channel_name) for m in ms]
+        subtitle = next((m.programme.subtitle for m in ms if m.programme.subtitle), "")
         grouped.append(GroupedMatch(
             title=main_title,
             start=rep.start,
             stop=rep.stop,
+            subtitle=subtitle,
             description=rep.description,
             categories=cats,
             channels=channels,
@@ -282,10 +285,12 @@ def group_programmes(programmes: list[Programme]) -> list[dict]:
                 (c for c in cats if "sport" not in c.lower()),
                 cats[0] if cats else "",
             )
+            subtitle = next((p.subtitle for p in g if p.subtitle), "")
             result.append({
                 "title": min((p.title for p in g), key=len),
                 "start": rep.start,
                 "stop": rep.stop,
+                "subtitle": subtitle,
                 "description": rep.description,
                 "categories": cats,
                 "channels": [(p.channel_number, p.channel_name) for p in g],

@@ -28,10 +28,47 @@ from storage import NotificationStore
 CONFIG_PATH = ROOT / "config.yaml"
 DB_PATH = ROOT / "epg_notifier.db"
 
+
+def _category_color(categories: list[str]) -> str:
+    """Map EPG category list to a Tailwind text-color class for the subtitle line."""
+    cats = " ".join(categories).lower()
+    if any(k in cats for k in ("american football", "nfl")):
+        return "text-blue-400"
+    if any(k in cats for k in ("soccer", "football")):
+        return "text-green-400"
+    if "basketball" in cats:
+        return "text-orange-400"
+    if "baseball" in cats:
+        return "text-yellow-400"
+    if "hockey" in cats:
+        return "text-cyan-400"
+    if "golf" in cats:
+        return "text-emerald-400"
+    if "tennis" in cats:
+        return "text-lime-400"
+    if any(k in cats for k in ("motor", "racing", "nascar", "formula")):
+        return "text-red-400"
+    if any(k in cats for k in ("boxing", "mma", "wrestling", "combat")):
+        return "text-rose-400"
+    if any(k in cats for k in ("rugby", "cricket", "volleyball", "swimming", "athletics")):
+        return "text-teal-400"
+    if "sport" in cats:
+        return "text-indigo-400"
+    if any(k in cats for k in ("movie", "film")):
+        return "text-purple-400"
+    if "news" in cats:
+        return "text-yellow-300"
+    if any(k in cats for k in ("reality", "game show")):
+        return "text-pink-400"
+    if any(k in cats for k in ("documentary", "nature")):
+        return "text-teal-300"
+    return "text-gray-400"
+
 log = logging.getLogger(__name__)
 app = FastAPI(title="EPG Notifier")
 templates = Jinja2Templates(directory=str(ROOT / "templates"))
 templates.env.filters["tojson"] = lambda v: json.dumps(v)
+templates.env.filters["category_color"] = _category_color
 
 # ── Config helpers ─────────────────────────────────────────────────────────
 

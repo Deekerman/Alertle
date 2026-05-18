@@ -67,15 +67,13 @@
         </td>
         <td class="px-5 py-4 align-top">
           <p class="font-medium text-gray-100 leading-snug">{{ g.title }}</p>
-          {% if g.categories %}
-          <div class="flex flex-wrap gap-1 mt-1.5">
-            {% for cat in g.categories[:3] %}
-            <span class="pill bg-white/5 text-gray-400">{{ cat }}</span>
-            {% endfor %}
-          </div>
+          {% if g.subtitle %}
+          <p class="text-xs mt-0.5 {{ g.categories|category_color }}">{{ g.subtitle }}</p>
+          {% elif g.categories %}
+          <p class="text-xs mt-0.5 {{ g.categories|category_color }}">{{ g.categories[0] }}</p>
           {% endif %}
           {% if g.description %}
-          <p class="text-xs text-muted mt-1.5 line-clamp-1 leading-relaxed">{{ g.description }}</p>
+          <p class="text-xs text-muted mt-1 line-clamp-1 leading-relaxed">{{ g.description }}</p>
           {% endif %}
         </td>
         <td class="px-5 py-4 align-top">

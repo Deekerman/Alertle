@@ -74,19 +74,26 @@ class Subscription:
     team: Optional[str] = None
     keyword: Optional[str] = None
     channel: Optional[str] = None
-    pattern: Optional[str] = None        # regex matched against "title description"
+    title_pattern: Optional[str] = None   # regex matched against programme title only
+    desc_pattern: Optional[str] = None    # regex matched against programme description only
     exclude: list[str] = field(default_factory=list)
     require_sport: bool = False
     lead_time_minutes: int = 30
-    _pattern_re: Optional[re.Pattern] = field(default=None, init=False, repr=False, compare=False)
+    _title_re: Optional[re.Pattern] = field(default=None, init=False, repr=False, compare=False)
+    _desc_re: Optional[re.Pattern] = field(default=None, init=False, repr=False, compare=False)
 
     def __post_init__(self):
-        if self.pattern:
-            try:
-                self._pattern_re = re.compile(self.pattern, re.IGNORECASE)
-            except re.error as exc:
-                log.warning("Invalid regex in subscription '%s': %s", self.label, exc)
-                self._pattern_re = None
+        self._title_re = self._compile(self.title_pattern)
+        self._desc_re = self._compile(self.desc_pattern)
+
+    def _compile(self, pattern: Optional[str]) -> Optional[re.Pattern]:
+        if not pattern:
+            return None
+        try:
+            return re.compile(pattern, re.IGNORECASE)
+        except re.error as exc:
+            log.warning("Invalid regex in subscription '%s': %s", self.label, exc)
+            return None
 
     def matches(self, prog: Programme) -> bool:
         # ── Category / sport checks (no text building needed) ──────────
@@ -121,16 +128,20 @@ class Subscription:
             if ch not in prog.channel_name.lower() and ch not in prog.channel_id.lower():
                 return False
 
-        # ── Text-based checks (build once, only when needed) ──────────
-        if self.keyword or self._pattern_re or self.exclude:
+        # ── Text-based checks ─────────────────────────────────────────
+        if self.keyword:
             text = f"{prog.title} {prog.description}".lower()
-
-            if self.keyword and self.keyword.lower() not in text:
+            if self.keyword.lower() not in text:
                 return False
 
-            if self._pattern_re and not self._pattern_re.search(text):
-                return False
+        if self._title_re and not self._title_re.search(prog.title):
+            return False
 
+        if self._desc_re and not self._desc_re.search(prog.description):
+            return False
+
+        if self.exclude:
+            text = f"{prog.title} {prog.description}".lower()
             for term in self.exclude:
                 t = term.strip().lower()
                 if t and t in text:
@@ -169,7 +180,8 @@ def build_subscriptions(raw: list[dict], default_lead_time: int) -> list[Subscri
             team=entry.get("team"),
             keyword=entry.get("keyword"),
             channel=entry.get("channel"),
-            pattern=entry.get("pattern"),
+            title_pattern=entry.get("title_pattern"),
+            desc_pattern=entry.get("desc_pattern"),
             exclude=exclude_raw,
             require_sport=bool(entry.get("require_sport", False)),
             lead_time_minutes=entry.get("lead_time_minutes", default_lead_time),

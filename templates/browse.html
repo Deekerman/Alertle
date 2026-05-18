@@ -84,9 +84,14 @@
                type="number" min="0" placeholder="Default from settings" />
       </div>
       <div>
-        <label class="form-label">Regex pattern</label>
-        <input name="pattern" class="field font-mono" placeholder="e.g. NFL|Super Bowl" />
-        <p class="form-hint">Applied to title + description (case-insensitive)</p>
+        <label class="form-label">Title regex</label>
+        <input name="title_pattern" class="field font-mono" placeholder="e.g. NFL|Super Bowl" />
+        <p class="form-hint">Matched against programme title only</p>
+      </div>
+      <div>
+        <label class="form-label">Description regex</label>
+        <input name="desc_pattern" class="field font-mono" placeholder="e.g. playoff|final" />
+        <p class="form-hint">Matched against programme description only</p>
       </div>
       <div>
         <label class="form-label">Exclude keywords</label>

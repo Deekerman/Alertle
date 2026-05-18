@@ -73,21 +73,28 @@
           </div>
         </div>
 
-        <!-- Row 4: Regex + Exclude -->
+        <!-- Row 4: Regex patterns -->
         <div class="grid grid-cols-2 gap-4 mb-4">
           <div>
-            <label class="form-label">Regex pattern</label>
-            <input name="pattern" class="field font-mono" placeholder="e.g. NFL|Super Bowl" />
-            <p class="form-hint">Applied to title + description (case-insensitive)</p>
+            <label class="form-label">Title regex</label>
+            <input name="title_pattern" class="field font-mono" placeholder="e.g. NFL|Super Bowl" />
+            <p class="form-hint">Matched against programme title only</p>
           </div>
           <div>
-            <label class="form-label">Exclude keywords</label>
-            <input name="exclude" class="field" placeholder="e.g. Women's, U20, highlights, replay" />
-            <p class="form-hint">Comma-separated — any match blocks the notification</p>
+            <label class="form-label">Description regex</label>
+            <input name="desc_pattern" class="field font-mono" placeholder="e.g. playoff|final" />
+            <p class="form-hint">Matched against programme description only</p>
           </div>
         </div>
 
-        <!-- Row 5: Options + Submit -->
+        <!-- Row 5: Exclude -->
+        <div class="mb-4">
+          <label class="form-label">Exclude keywords</label>
+          <input name="exclude" class="field" placeholder="e.g. Women's, U20, highlights, replay" />
+          <p class="form-hint">Comma-separated — any match blocks the notification</p>
+        </div>
+
+        <!-- Row 6: Options + Submit -->
         <div class="flex items-center justify-between pt-2">
           <label class="flex items-center gap-2.5 cursor-pointer select-none">
             <input type="checkbox" name="require_sport" value="on" class="toggle" />

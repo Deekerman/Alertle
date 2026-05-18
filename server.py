@@ -155,13 +155,18 @@ async def partial_matches(request: Request):
             cfg.get("subscriptions", []),
             cfg.get("default_lead_time_minutes", 30),
         )
-        from espn import filter_replays
+        from espn import filter_replays, get_espn_state
         grouped = filter_replays(group_matches(find_matches(programmes, subs)), cfg)
+        espn_states = {
+            g.group_uid: get_espn_state(g.title, g.start, g.categories)
+            for g in grouped
+        }
     except Exception as exc:
         error = str(exc)
         grouped = []
+        espn_states = {}
     return templates.TemplateResponse(request, "partials/matches.html", {
-        "grouped": grouped, "error": error,
+        "grouped": grouped, "error": error, "espn_states": espn_states,
     })
 
 

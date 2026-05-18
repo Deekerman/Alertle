@@ -162,6 +162,26 @@ def check_replay(epg_title: str, epg_start: datetime, categories: list[str]) -> 
     return None  # No ESPN match found — fail open (allow notification)
 
 
+def get_espn_state(epg_title: str, epg_start: datetime, categories: list[str]) -> Optional[str]:
+    """
+    Return the ESPN status state for a matched event: 'pre', 'in', or 'post'.
+    Returns None when ESPN has no data for this sport or no matching event.
+    """
+    leagues = _leagues_for_categories(categories)
+    if not leagues:
+        return None
+
+    search_from = epg_start - timedelta(days=1)
+    search_to = epg_start + timedelta(days=1)
+
+    for sport, league in leagues:
+        for ev in _fetch_events(sport, league, search_from, search_to):
+            if _matches_event(epg_title, ev["name"], ev["competitors"]):
+                return ev["state"]
+
+    return None
+
+
 def filter_replays(grouped: list, cfg: dict) -> list:
     """Remove replay entries from a GroupedMatch list when espn_verify is enabled."""
     if not cfg.get("espn_verify"):

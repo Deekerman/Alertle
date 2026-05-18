@@ -18,9 +18,12 @@ _AVAILABLE_VARS = (
 )
 
 
-def build_preview_vars(g: "GroupedMatch") -> dict:
+def build_preview_vars(g: "GroupedMatch", show_channel_nums: bool = False) -> dict:
     local_start = g.start.astimezone()
-    ch_parts = [f"{name} ({num})" if num else name for num, name in g.channels]
+    if show_channel_nums:
+        ch_parts = [f"{num} - {name}" if num else name for num, name in g.channels]
+    else:
+        ch_parts = [name for _, name in g.channels]
     return {
         "title": g.title,
         "subtitle": g.subtitle or "",
@@ -41,8 +44,9 @@ def format_grouped_message(
     g: "GroupedMatch",
     title_tpl: str = DEFAULT_TITLE_TEMPLATE,
     body_tpl: str = DEFAULT_BODY_TEMPLATE,
+    show_channel_nums: bool = False,
 ) -> tuple[str, str]:
-    vars_ = build_preview_vars(g)
+    vars_ = build_preview_vars(g, show_channel_nums=show_channel_nums)
     return render_template(title_tpl, vars_), render_template(body_tpl, vars_).rstrip()
 
 

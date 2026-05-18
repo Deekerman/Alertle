@@ -157,14 +157,6 @@
         },
       });
 
-      Alpine.store('ui', {
-        showChannelNums: localStorage.getItem('epgNotifier.showChannelNums') === 'true',
-        toggleChannelNums() {
-          this.showChannelNums = !this.showChannelNums;
-          localStorage.setItem('epgNotifier.showChannelNums', this.showChannelNums);
-        },
-      });
-
       Alpine.store('subManager', {
         selected: [],
         toggle(idx) {

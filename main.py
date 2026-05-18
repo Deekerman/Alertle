@@ -113,7 +113,8 @@ def run_scan(cfg: dict, notifiers_map: dict[str, BaseNotifier], store: Notificat
         notif_tpl = cfg.get("notification_template", {})
         title_tpl = notif_tpl.get("title", DEFAULT_TITLE_TEMPLATE)
         body_tpl = notif_tpl.get("body", DEFAULT_BODY_TEMPLATE)
-        title, body = format_grouped_message(g, title_tpl, body_tpl)
+        show_nums = notif_tpl.get("show_channel_nums", False)
+        title, body = format_grouped_message(g, title_tpl, body_tpl, show_channel_nums=show_nums)
 
         if dry_run:
             print(f"\n{'─'*60}")

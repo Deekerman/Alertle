@@ -75,7 +75,9 @@ templates.env.filters["category_color"] = _category_color
 
 
 def _preview_vars_filter(g) -> dict:
-    vars_ = build_preview_vars(g)
+    cfg = load_config()
+    show_nums = cfg.get("notification_template", {}).get("show_channel_nums", False)
+    vars_ = build_preview_vars(g, show_channel_nums=show_nums)
     vars_["notify_channels"] = ", ".join(g.subscription.notify_channels)
     return vars_
 
@@ -500,6 +502,7 @@ async def save_settings(request: Request):
         tpl["title"] = tpl_title
     if tpl_body:
         tpl["body"] = tpl_body
+    tpl["show_channel_nums"] = form.get("notif_show_channel_nums") == "on"
 
     n = cfg.setdefault("notifications", {})
 

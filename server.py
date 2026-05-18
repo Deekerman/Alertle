@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import asynccontextmanager
 import html
 import json
 import logging
@@ -69,7 +70,15 @@ def _category_color(categories: list[str]) -> str:
     return "text-gray-400"
 
 log = logging.getLogger(__name__)
-app = FastAPI(title="Alertle")
+
+
+@asynccontextmanager
+async def lifespan(app):
+    asyncio.create_task(_auto_scan_loop())
+    yield
+
+
+app = FastAPI(title="Alertle", lifespan=lifespan)
 templates = Jinja2Templates(directory=str(ROOT / "templates"))
 templates.env.filters["tojson"] = lambda v: json.dumps(v)
 templates.env.filters["category_color"] = _category_color
@@ -641,11 +650,6 @@ async def _auto_scan_loop():
         log.info("Auto-scan triggered (interval: %ds)", interval)
         _do_scan()
         await asyncio.sleep(interval)
-
-
-@app.on_event("startup")
-async def start_auto_scanner():
-    asyncio.create_task(_auto_scan_loop())
 
 
 # ── Entry point ────────────────────────────────────────────────────────────

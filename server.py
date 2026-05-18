@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import html
 import json
 import logging
 import sys
@@ -482,15 +483,13 @@ async def test_notification(channel: str):
                 s["host"], s["port"], s["username"], s["password"],
                 s["from_addr"], s["to_addrs"], s.get("use_tls", True),
             ).send(title, body)
-        return Response(
-            content="Sent",
-            headers={"X-Toast": f"Test sent via {channel}"},
+        return HTMLResponse(
+            content='<span class="text-green-400 text-xs font-medium">✓ Sent</span>',
         )
     except Exception as exc:
-        return Response(
-            content=str(exc),
+        return HTMLResponse(
+            content=f'<span class="text-red-400 text-xs" title="{html.escape(str(exc))}">✕ {html.escape(str(exc)[:60])}{"…" if len(str(exc)) > 60 else ""}</span>',
             status_code=400,
-            headers={"X-Toast": f"Test failed: {exc}"},
         )
 
 

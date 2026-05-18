@@ -79,6 +79,10 @@ subscriptions:
     keyword: "Champions League"
     lead_time_minutes: 60
 
+  - label: "Toronto Blue Jays"
+    title_pattern: "^MLB Baseball$"
+    subtitle_pattern: "(Toronto Blue Jays at .+|.+ at Toronto Blue Jays)"
+
   # - label: "All Hockey"
   #   sport: "ice hockey"
 

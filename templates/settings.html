@@ -150,7 +150,8 @@
           <p class="text-sm font-medium text-gray-100">Telegram</p>
         </div>
         <div class="flex items-center gap-2">
-          <button type="button" hx-post="/action/test/telegram" hx-swap="none" class="btn-ghost text-xs py-1">Test</button>
+          <span id="test-result-telegram" class="text-xs"></span>
+          <button type="button" hx-post="/action/test/telegram" hx-target="#test-result-telegram" hx-swap="innerHTML" class="btn-ghost text-xs py-1">Test</button>
           <button type="button" @click="open = !open" class="text-muted hover:text-gray-300 p-1">
             <svg class="w-4 h-4 transition-transform duration-150" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m19 9-7 7-7-7"/></svg>
           </button>
@@ -180,7 +181,8 @@
           <p class="text-sm font-medium text-gray-100">Pushover</p>
         </div>
         <div class="flex items-center gap-2">
-          <button type="button" hx-post="/action/test/pushover" hx-swap="none" class="btn-ghost text-xs py-1">Test</button>
+          <span id="test-result-pushover" class="text-xs"></span>
+          <button type="button" hx-post="/action/test/pushover" hx-target="#test-result-pushover" hx-swap="innerHTML" class="btn-ghost text-xs py-1">Test</button>
           <button type="button" @click="open = !open" class="text-muted hover:text-gray-300 p-1">
             <svg class="w-4 h-4 transition-transform duration-150" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m19 9-7 7-7-7"/></svg>
           </button>
@@ -210,7 +212,8 @@
           <p class="text-sm font-medium text-gray-100">Ntfy</p>
         </div>
         <div class="flex items-center gap-2">
-          <button type="button" hx-post="/action/test/ntfy" hx-swap="none" class="btn-ghost text-xs py-1">Test</button>
+          <span id="test-result-ntfy" class="text-xs"></span>
+          <button type="button" hx-post="/action/test/ntfy" hx-target="#test-result-ntfy" hx-swap="innerHTML" class="btn-ghost text-xs py-1">Test</button>
           <button type="button" @click="open = !open" class="text-muted hover:text-gray-300 p-1">
             <svg class="w-4 h-4 transition-transform duration-150" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m19 9-7 7-7-7"/></svg>
           </button>
@@ -244,7 +247,8 @@
           <p class="text-sm font-medium text-gray-100">Discord</p>
         </div>
         <div class="flex items-center gap-2">
-          <button type="button" hx-post="/action/test/discord" hx-swap="none" class="btn-ghost text-xs py-1">Test</button>
+          <span id="test-result-discord" class="text-xs"></span>
+          <button type="button" hx-post="/action/test/discord" hx-target="#test-result-discord" hx-swap="innerHTML" class="btn-ghost text-xs py-1">Test</button>
           <button type="button" @click="open = !open" class="text-muted hover:text-gray-300 p-1">
             <svg class="w-4 h-4 transition-transform duration-150" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m19 9-7 7-7-7"/></svg>
           </button>
@@ -268,7 +272,8 @@
           <p class="text-sm font-medium text-gray-100">Email / SMTP</p>
         </div>
         <div class="flex items-center gap-2">
-          <button type="button" hx-post="/action/test/smtp" hx-swap="none" class="btn-ghost text-xs py-1">Test</button>
+          <span id="test-result-smtp" class="text-xs"></span>
+          <button type="button" hx-post="/action/test/smtp" hx-target="#test-result-smtp" hx-swap="innerHTML" class="btn-ghost text-xs py-1">Test</button>
           <button type="button" @click="open = !open" class="text-muted hover:text-gray-300 p-1">
             <svg class="w-4 h-4 transition-transform duration-150" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m19 9-7 7-7-7"/></svg>
           </button>

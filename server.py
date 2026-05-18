@@ -221,38 +221,24 @@ async def partial_subscriptions(request: Request):
 
 # ── Subscription CRUD ──────────────────────────────────────────────────────
 
-@app.post("/partial/subscriptions", response_class=HTMLResponse)
-async def add_subscription(
-    request: Request,
-    label: str = Form(...),
-    sport: str = Form(""),
-    team: str = Form(""),
-    keyword: str = Form(""),
-    channel: str = Form(""),
-    title_pattern: str = Form(""),
-    subtitle_pattern: str = Form(""),
-    desc_pattern: str = Form(""),
-    exclude: str = Form(""),
-    require_sport: str = Form(""),
-    lead_time_minutes: str = Form(""),
-):
-    cfg = load_config()
-    subs = cfg.setdefault("subscriptions", [])
+_SUB_FORM_PARAMS = dict(
+    sport=Form(""), team=Form(""), keyword=Form(""), channel=Form(""),
+    title_pattern=Form(""), subtitle_pattern=Form(""), desc_pattern=Form(""),
+    exclude=Form(""), require_sport=Form(""), lead_time_minutes=Form(""),
+)
+
+
+def _build_sub_entry(
+    label: str, sport: str, team: str, keyword: str, channel: str,
+    title_pattern: str, subtitle_pattern: str, desc_pattern: str,
+    exclude: str, require_sport: str, lead_time_minutes: str,
+) -> dict:
     entry: dict = {"label": label.strip()}
-    if sport.strip():
-        entry["sport"] = sport.strip()
-    if team.strip():
-        entry["team"] = team.strip()
-    if keyword.strip():
-        entry["keyword"] = keyword.strip()
-    if channel.strip():
-        entry["channel"] = channel.strip()
-    if title_pattern.strip():
-        entry["title_pattern"] = title_pattern.strip()
-    if subtitle_pattern.strip():
-        entry["subtitle_pattern"] = subtitle_pattern.strip()
-    if desc_pattern.strip():
-        entry["desc_pattern"] = desc_pattern.strip()
+    for key, val in [("sport", sport), ("team", team), ("keyword", keyword),
+                     ("channel", channel), ("title_pattern", title_pattern),
+                     ("subtitle_pattern", subtitle_pattern), ("desc_pattern", desc_pattern)]:
+        if val.strip():
+            entry[key] = val.strip()
     exclude_list = [x.strip() for x in exclude.split(",") if x.strip()]
     if exclude_list:
         entry["exclude"] = exclude_list
@@ -263,14 +249,69 @@ async def add_subscription(
             entry["lead_time_minutes"] = int(lead_time_minutes)
         except ValueError:
             pass
-    subs.append(entry)
-    save_config(cfg)
+    return entry
 
-    resp = templates.TemplateResponse(request, "partials/sub_rows.html", {
-        "subscriptions": subs,
-    })
-    resp.headers["X-Toast"] = f"Added: {label}"
+
+def _sub_response(request: Request, subs: list, toast: str) -> Response:
+    resp = templates.TemplateResponse(request, "partials/sub_rows.html",
+                                      {"subscriptions": subs})
+    resp.headers["X-Toast"] = toast
     return resp
+
+
+@app.post("/partial/subscriptions", response_class=HTMLResponse)
+async def add_subscription(
+    request: Request,
+    label: str = Form(...),
+    sport: str = Form(""), team: str = Form(""), keyword: str = Form(""),
+    channel: str = Form(""), title_pattern: str = Form(""),
+    subtitle_pattern: str = Form(""), desc_pattern: str = Form(""),
+    exclude: str = Form(""), require_sport: str = Form(""),
+    lead_time_minutes: str = Form(""),
+):
+    cfg = load_config()
+    subs = cfg.setdefault("subscriptions", [])
+    subs.append(_build_sub_entry(label, sport, team, keyword, channel,
+                                 title_pattern, subtitle_pattern, desc_pattern,
+                                 exclude, require_sport, lead_time_minutes))
+    save_config(cfg)
+    return _sub_response(request, subs, f"Added: {label}")
+
+
+@app.post("/partial/subscriptions/bulk", response_class=HTMLResponse)
+async def bulk_delete_subscriptions(request: Request, indices: str = Form("")):
+    cfg = load_config()
+    subs = cfg.get("subscriptions", [])
+    to_remove = sorted({int(i) for i in indices.split(",") if i.strip().isdigit()}, reverse=True)
+    count = 0
+    for i in to_remove:
+        if 0 <= i < len(subs):
+            subs.pop(i)
+            count += 1
+    if count:
+        save_config(cfg)
+    noun = "subscription" if count == 1 else "subscriptions"
+    return _sub_response(request, subs, f"Removed {count} {noun}")
+
+
+@app.post("/partial/subscriptions/{idx}", response_class=HTMLResponse)
+async def update_subscription(
+    request: Request, idx: int,
+    label: str = Form(...),
+    sport: str = Form(""), team: str = Form(""), keyword: str = Form(""),
+    channel: str = Form(""), title_pattern: str = Form(""),
+    subtitle_pattern: str = Form(""), desc_pattern: str = Form(""),
+    exclude: str = Form(""), require_sport: str = Form(""),
+    lead_time_minutes: str = Form(""),
+):
+    cfg = load_config()
+    subs = cfg.get("subscriptions", [])
+    if 0 <= idx < len(subs):
+        subs[idx] = _build_sub_entry(label, sport, team, keyword, channel,
+                                     title_pattern, subtitle_pattern, desc_pattern,
+                                     exclude, require_sport, lead_time_minutes)
+        save_config(cfg)
+    return _sub_response(request, subs, f"Saved: {label}")
 
 
 @app.delete("/partial/subscriptions/{idx}", response_class=HTMLResponse)
@@ -281,11 +322,7 @@ async def delete_subscription(request: Request, idx: int):
     if 0 <= idx < len(subs):
         label = subs.pop(idx).get("label", "")
         save_config(cfg)
-    resp = templates.TemplateResponse(request, "partials/sub_rows.html", {
-        "subscriptions": subs,
-    })
-    resp.headers["X-Toast"] = f"Removed: {label}"
-    return resp
+    return _sub_response(request, subs, f"Removed: {label}")
 
 
 # ── API probe ─────────────────────────────────────────────────────────────

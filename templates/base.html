@@ -102,6 +102,41 @@
         },
         close() { this.open = false; }
       });
+
+      Alpine.store('subEdit', {
+        open: false, idx: null,
+        label:'', sport:'', team:'', keyword:'', channel:'',
+        title_pattern:'', subtitle_pattern:'', desc_pattern:'',
+        exclude:'', require_sport: false, lead:'',
+        fill(idx, data) {
+          this.idx = idx;
+          this.label            = data.label            || '';
+          this.sport            = data.sport            || '';
+          this.team             = data.team             || '';
+          this.keyword          = data.keyword          || '';
+          this.channel          = data.channel          || '';
+          this.title_pattern    = data.title_pattern    || '';
+          this.subtitle_pattern = data.subtitle_pattern || '';
+          this.desc_pattern     = data.desc_pattern     || '';
+          this.exclude = Array.isArray(data.exclude) ? data.exclude.join(', ') : '';
+          this.require_sport    = !!data.require_sport;
+          this.lead = data.lead_time_minutes != null ? String(data.lead_time_minutes) : '';
+          this.open = true;
+        },
+        close() { this.open = false; this.idx = null; }
+      });
+
+      Alpine.store('subManager', {
+        selected: [],
+        toggle(idx) {
+          const i = this.selected.indexOf(idx);
+          if (i === -1) this.selected.push(idx); else this.selected.splice(i, 1);
+        },
+        selectAll(n) { this.selected = Array.from({length: n}, (_, i) => i); },
+        clear()  { this.selected = []; },
+        has(idx) { return this.selected.includes(idx); },
+        param()  { return this.selected.join(','); }
+      });
     });
   </script>
 

@@ -10,22 +10,38 @@
   <p class="text-xs text-muted mt-1">Add one above or click Subscribe on any row in Browse EPG.</p>
 </div>
 {% else %}
+{% set total = subscriptions|length %}
 <div class="card overflow-hidden">
   <table class="w-full text-sm">
     <thead>
       <tr class="border-b border-border">
-        <th class="px-5 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Label</th>
-        <th class="px-5 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Match rules</th>
-        <th class="px-5 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Exclude</th>
-        <th class="px-5 py-3 text-right text-xs font-medium text-muted uppercase tracking-wider w-16">Lead</th>
-        <th class="px-5 py-3 w-14"></th>
+        <th class="px-4 py-3 w-10">
+          <input type="checkbox" class="toggle"
+            :checked="$store.subManager.selected.length === {{ total }}"
+            :indeterminate="$store.subManager.selected.length > 0 && $store.subManager.selected.length < {{ total }}"
+            @change="$event.target.checked ? $store.subManager.selectAll({{ total }}) : $store.subManager.clear()"
+          />
+        </th>
+        <th class="px-4 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Label</th>
+        <th class="px-4 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Match rules</th>
+        <th class="px-4 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Exclude</th>
+        <th class="px-4 py-3 text-right text-xs font-medium text-muted uppercase tracking-wider w-16">Lead</th>
+        <th class="px-4 py-3 w-24"></th>
       </tr>
     </thead>
     <tbody>
       {% for sub in subscriptions %}
-      <tr class="border-b border-border/50 hover:bg-white/[0.015] transition-colors last:border-0 group">
-        <td class="px-5 py-4 align-top font-medium text-gray-100">{{ sub.label }}</td>
-        <td class="px-5 py-4 align-top">
+      <tr class="border-b border-border/50 last:border-0 transition-colors group"
+          :class="$store.subManager.has({{ loop.index0 }}) ? 'bg-indigo-950/30' : 'hover:bg-white/[0.015]'"
+          data-sub="{{ sub|tojson|e }}">
+        <td class="px-4 py-4 align-top">
+          <input type="checkbox" class="toggle"
+            :checked="$store.subManager.has({{ loop.index0 }})"
+            @change="$store.subManager.toggle({{ loop.index0 }})"
+          />
+        </td>
+        <td class="px-4 py-4 align-top font-medium text-gray-100">{{ sub.label }}</td>
+        <td class="px-4 py-4 align-top">
           <div class="flex flex-wrap gap-1">
             {% if sub.sport %}
             <span class="pill bg-blue-500/10 text-blue-300 border border-blue-500/20">sport: {{ sub.sport }}</span>
@@ -51,12 +67,13 @@
             {% if sub.get('require_sport') %}
             <span class="pill bg-orange-500/10 text-orange-300 border border-orange-500/20">sport only</span>
             {% endif %}
-            {% if not sub.sport and not sub.team and not sub.keyword and not sub.channel and not sub.get('title_pattern') and not sub.get('subtitle_pattern') and not sub.get('desc_pattern') %}
+            {% if not sub.sport and not sub.team and not sub.keyword and not sub.channel
+                  and not sub.get('title_pattern') and not sub.get('subtitle_pattern') and not sub.get('desc_pattern') %}
             <span class="text-muted text-xs">—</span>
             {% endif %}
           </div>
         </td>
-        <td class="px-5 py-4 align-top">
+        <td class="px-4 py-4 align-top">
           {% set excl = sub.get('exclude', []) if sub is mapping else [] %}
           {% if excl %}
           <div class="flex flex-wrap gap-1">
@@ -68,17 +85,25 @@
           <span class="text-muted text-xs">—</span>
           {% endif %}
         </td>
-        <td class="px-5 py-4 text-right align-top text-xs text-muted">
+        <td class="px-4 py-4 text-right align-top text-xs text-muted">
           {% if sub.lead_time_minutes is defined %}{{ sub.lead_time_minutes }}m{% else %}default{% endif %}
         </td>
-        <td class="px-5 py-4 text-right align-top">
-          <button
-            hx-delete="/partial/subscriptions/{{ loop.index0 }}"
-            hx-target="#sub-list"
-            hx-swap="outerHTML"
-            hx-confirm="Remove '{{ sub.label }}'?"
-            class="btn-danger opacity-0 group-hover:opacity-100"
-          >Remove</button>
+        <td class="px-4 py-4 text-right align-top">
+          <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              type="button"
+              class="btn-ghost text-xs py-1 px-2"
+              @click="$store.subEdit.fill({{ loop.index0 }}, JSON.parse($el.closest('tr').dataset.sub))"
+            >Edit</button>
+            <button
+              hx-delete="/partial/subscriptions/{{ loop.index0 }}"
+              hx-target="#sub-list"
+              hx-swap="outerHTML"
+              hx-confirm="Remove '{{ sub.label }}'?"
+              @htmx:after-request="$store.subManager.clear()"
+              class="btn-danger"
+            >Remove</button>
+          </div>
         </td>
       </tr>
       {% endfor %}

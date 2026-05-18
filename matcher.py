@@ -13,7 +13,6 @@ log = logging.getLogger(__name__)
 _VS_SEP = re.compile(r'\s+(?:vs?\.?|@)\s+', re.IGNORECASE)
 _TRAILING = re.compile(r'\s*[-–(].*$')
 
-# Words too generic to use for fuzzy title grouping
 _STOP_WORDS = {
     "the", "from", "live", "at", "in", "on", "a", "an", "and", "of", "to",
     "with", "for", "is", "its", "into", "week", "day", "game", "match",
@@ -43,20 +42,19 @@ def _titles_related(t1: str, t2: str) -> bool:
     """True if the two titles likely refer to the same event."""
     if t1.lower() == t2.lower():
         return True
-    # One is a substring of the other (e.g. "PGA Championship" in "Live From the PGA Championship")
     if t1.lower() in t2.lower() or t2.lower() in t1.lower():
         return True
-    # Share at least 2 significant words
     sig1 = _title_sig_words(t1)
     sig2 = _title_sig_words(t2)
     return len(sig1 & sig2) >= 2
 
 
+def _has_sport_category(prog: Programme) -> bool:
+    return any("sport" in cat.lower() for cat in prog.categories)
+
+
 def filter_categories(cats: list[str]) -> list[str]:
-    """
-    Remove categories that are generic prefixes of a more specific one in the
-    same list.  E.g. if both "Sports" and "Sports event" exist, drop "Sports".
-    """
+    """Remove categories that are generic prefixes of a more specific one in the same list."""
     result = []
     for cat in cats:
         cat_l = cat.lower()
@@ -76,22 +74,33 @@ class Subscription:
     team: Optional[str] = None
     keyword: Optional[str] = None
     channel: Optional[str] = None
+    pattern: Optional[str] = None        # regex matched against "title description"
     exclude: list[str] = field(default_factory=list)
-    require_sport: bool = False   # if True, programme must have a sports-related category
+    require_sport: bool = False
     lead_time_minutes: int = 30
+    _pattern_re: Optional[re.Pattern] = field(default=None, init=False, repr=False, compare=False)
+
+    def __post_init__(self):
+        if self.pattern:
+            try:
+                self._pattern_re = re.compile(self.pattern, re.IGNORECASE)
+            except re.error as exc:
+                log.warning("Invalid regex in subscription '%s': %s", self.label, exc)
+                self._pattern_re = None
 
     def matches(self, prog: Programme) -> bool:
-        # ── Positive filters ──────────────────────────────────────────
+        # ── Category / sport checks (no text building needed) ──────────
         if self.sport:
             if not any(self.sport.lower() in cat.lower() for cat in prog.categories):
                 return False
 
-        if self.require_sport and not self.sport:
-            if not any("sport" in cat.lower() for cat in prog.categories):
+        # require_sport only adds value for keyword/channel/pattern subs;
+        # team matching already enforces sport category for non-vs titles.
+        if self.require_sport and not self.sport and not self.team:
+            if not _has_sport_category(prog):
                 return False
 
-        text = f"{prog.title} {prog.description}".lower()
-
+        # ── Team matching ──────────────────────────────────────────────
         if self.team:
             team_l = self.team.lower()
             teams = extract_teams(prog.title)
@@ -100,28 +109,32 @@ class Subscription:
                 if not any(team_l in t.lower() for t in teams):
                     return False
             else:
-                # Non-vs title — require a sport category so "Real American Cowboys"
-                # or similar reality shows don't match a team subscription
-                if not any("sport" in cat.lower() for cat in prog.categories):
+                # Non-vs title — require sport category to avoid reality shows etc.
+                if not _has_sport_category(prog):
                     return False
-                if team_l not in text:
+                if team_l not in f"{prog.title} {prog.description}".lower():
                     return False
 
-        if self.keyword:
-            if self.keyword.lower() not in text:
-                return False
-
+        # ── Channel matching ───────────────────────────────────────────
         if self.channel:
             ch = self.channel.lower()
             if ch not in prog.channel_name.lower() and ch not in prog.channel_id.lower():
                 return False
 
-        # ── Negative filters ──────────────────────────────────────────
-        for term in self.exclude:
-            t = term.strip().lower()
-            if t and t in text:
-                log.debug("'%s' excluded by term '%s'", prog.title, term)
+        # ── Text-based checks (build once, only when needed) ──────────
+        if self.keyword or self._pattern_re or self.exclude:
+            text = f"{prog.title} {prog.description}".lower()
+
+            if self.keyword and self.keyword.lower() not in text:
                 return False
+
+            if self._pattern_re and not self._pattern_re.search(text):
+                return False
+
+            for term in self.exclude:
+                t = term.strip().lower()
+                if t and t in text:
+                    return False
 
         return True
 
@@ -156,6 +169,7 @@ def build_subscriptions(raw: list[dict], default_lead_time: int) -> list[Subscri
             team=entry.get("team"),
             keyword=entry.get("keyword"),
             channel=entry.get("channel"),
+            pattern=entry.get("pattern"),
             exclude=exclude_raw,
             require_sport=bool(entry.get("require_sport", False)),
             lead_time_minutes=entry.get("lead_time_minutes", default_lead_time),
@@ -175,13 +189,11 @@ def find_matches(programmes: list[Programme], subscriptions: list[Subscription])
 
 def group_matches(matches: list[Match]) -> list[GroupedMatch]:
     """Collapse matches for the same event (same start + related title) into one GroupedMatch."""
-    # First bucket by exact (title, start, subscription)
     exact: dict[tuple, list[Match]] = defaultdict(list)
     for m in matches:
         key = (m.programme.title.lower(), m.programme.start, m.subscription.label)
         exact[key].append(m)
 
-    # Then merge buckets whose titles are related and share the same start minute
     merged: list[list[Match]] = []
     for ms in exact.values():
         rep = ms[0]
@@ -190,10 +202,9 @@ def group_matches(matches: list[Match]) -> list[GroupedMatch]:
         placed = False
         for group in merged:
             g_rep = group[0]
-            g_start_min = g_rep.programme.start.replace(second=0, microsecond=0)
             if (
                 g_rep.subscription.label == sub_label
-                and g_start_min == start_min
+                and g_rep.programme.start.replace(second=0, microsecond=0) == start_min
                 and _titles_related(g_rep.programme.title, rep.programme.title)
             ):
                 group.extend(ms)
@@ -205,9 +216,7 @@ def group_matches(matches: list[Match]) -> list[GroupedMatch]:
     grouped: list[GroupedMatch] = []
     for ms in merged:
         rep = ms[0].programme
-        # Use the shortest title as representative (most likely the "main" event title)
-        titles = list({m.programme.title for m in ms})
-        main_title = min(titles, key=len)
+        main_title = min((m.programme.title for m in ms), key=len)
         cats = filter_categories(rep.categories)
         channels = [(m.programme.channel_number, m.programme.channel_name) for m in ms]
         grouped.append(GroupedMatch(
@@ -230,15 +239,12 @@ def group_programmes(programmes: list[Programme]) -> list[dict]:
     Collapse programmes with related titles at the same start minute into one
     entry, merging channel info. Returns dicts for template rendering.
     """
-    # Step 1: bucket by start minute
     by_minute: dict[object, list[Programme]] = defaultdict(list)
     for p in programmes:
         by_minute[p.start.replace(second=0, microsecond=0)].append(p)
 
-    # Step 2: within each minute, merge related titles using union-find
     result: list[dict] = []
     for progs in by_minute.values():
-        # Build groups via greedy merge
         groups: list[list[Programme]] = []
         for p in progs:
             placed = False
@@ -253,13 +259,12 @@ def group_programmes(programmes: list[Programme]) -> list[dict]:
         for g in groups:
             rep = g[0]
             cats = filter_categories(rep.categories)
-            # Pick most specific sport hint (longest category that isn't generic)
             sport_hint = next(
                 (c for c in cats if "sport" not in c.lower()),
                 cats[0] if cats else "",
             )
             result.append({
-                "title": min((p.title for p in g), key=len),  # shortest = cleanest title
+                "title": min((p.title for p in g), key=len),
                 "start": rep.start,
                 "stop": rep.stop,
                 "description": rep.description,

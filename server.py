@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import sys
 import time
@@ -15,8 +16,6 @@ import yaml
 from fastapi import BackgroundTasks, FastAPI, Form, Request, Response
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-
-import json
 
 ROOT = Path(__file__).parent
 sys.path.insert(0, str(ROOT))
@@ -113,7 +112,6 @@ async def page_settings(request: Request):
 async def partial_matches(request: Request):
     cfg = load_config()
     error: Optional[str] = None
-    matches = []
     try:
         programmes = get_programmes(cfg)
         subs = build_subscriptions(
@@ -146,16 +144,18 @@ async def partial_epg(
         channels = sorted({p.channel_name for p in programmes})
         sports = sorted({c for p in programmes for c in p.categories if c})
 
-        filtered = programmes
-        if sport:
-            filtered = [p for p in filtered if any(sport.lower() in c.lower() for c in p.categories)]
-        if channel:
-            filtered = [p for p in filtered if channel.lower() in p.channel_name.lower()]
-        if q:
-            ql = q.lower()
-            filtered = [p for p in filtered if ql in p.title.lower() or ql in p.description.lower()]
-
-        filtered = sorted(filtered, key=lambda p: p.start)[:600]
+        sport_l = sport.lower() if sport else ""
+        channel_l = channel.lower() if channel else ""
+        q_l = q.lower() if q else ""
+        filtered = sorted(
+            (
+                p for p in programmes
+                if (not sport_l or any(sport_l in c.lower() for c in p.categories))
+                and (not channel_l or channel_l in p.channel_name.lower())
+                and (not q_l or q_l in p.title.lower() or q_l in p.description.lower())
+            ),
+            key=lambda p: p.start,
+        )[:600]
     except Exception as exc:
         error = str(exc)
 
@@ -186,6 +186,7 @@ async def add_subscription(
     team: str = Form(""),
     keyword: str = Form(""),
     channel: str = Form(""),
+    pattern: str = Form(""),
     exclude: str = Form(""),
     require_sport: str = Form(""),
     lead_time_minutes: str = Form(""),
@@ -201,6 +202,8 @@ async def add_subscription(
         entry["keyword"] = keyword.strip()
     if channel.strip():
         entry["channel"] = channel.strip()
+    if pattern.strip():
+        entry["pattern"] = pattern.strip()
     exclude_list = [x.strip() for x in exclude.split(",") if x.strip()]
     if exclude_list:
         entry["exclude"] = exclude_list
@@ -263,11 +266,10 @@ async def probe_dispatcharr(request: Request):
             colour = "text-gray-500"
 
         detail = (info.get("snippet") or info.get("error") or "")[:140]
-        label = key  # "PATH [auth-style]"
 
         rows += (
             f'<tr class="border-b border-border">'
-            f'<td class="py-1.5 pr-3 font-mono text-xs text-gray-300 whitespace-nowrap">{label}</td>'
+            f'<td class="py-1.5 pr-3 font-mono text-xs text-gray-300 whitespace-nowrap">{key}</td>'
             f'<td class="py-1.5 pr-3 text-xs {colour} whitespace-nowrap">{status or "err"}</td>'
             f'<td class="py-1.5 text-xs text-gray-500 break-all">{detail}</td>'
             f'</tr>'

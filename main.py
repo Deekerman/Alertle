@@ -179,12 +179,12 @@ def main():
 
 def _cmd_list(cfg: dict):
     """Print all matching events in the lookahead window (no notification state)."""
-    from epg_scanner import DispatcharrClient
-    from matcher import build_subscriptions, find_matches
-    from datetime import datetime, timedelta, timezone
-
     dispatcharr = cfg["dispatcharr"]
-    client = DispatcharrClient(dispatcharr["url"], dispatcharr["token"])
+    client = DispatcharrClient(
+        dispatcharr["url"],
+        dispatcharr.get("token", ""),
+        dispatcharr.get("xmltv_url", ""),
+    )
     now = datetime.now(timezone.utc)
     window_end = now + timedelta(days=dispatcharr.get("lookahead_days", 7))
     programmes = client.fetch_programmes(now, window_end)

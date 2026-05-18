@@ -73,11 +73,18 @@
           </div>
         </div>
 
-        <!-- Row 4: Exclude -->
-        <div class="mb-4">
-          <label class="form-label">Exclude keywords</label>
-          <input name="exclude" class="field" placeholder="e.g. Women's, U20, highlights, replay" />
-          <p class="form-hint">Comma-separated — any match blocks the notification</p>
+        <!-- Row 4: Regex + Exclude -->
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="form-label">Regex pattern</label>
+            <input name="pattern" class="field font-mono" placeholder="e.g. NFL|Super Bowl" />
+            <p class="form-hint">Applied to title + description (case-insensitive)</p>
+          </div>
+          <div>
+            <label class="form-label">Exclude keywords</label>
+            <input name="exclude" class="field" placeholder="e.g. Women's, U20, highlights, replay" />
+            <p class="form-hint">Comma-separated — any match blocks the notification</p>
+          </div>
         </div>
 
         <!-- Row 5: Options + Submit -->

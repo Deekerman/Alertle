@@ -50,16 +50,10 @@ class DispatcharrClient:
 
     def probe_api(self) -> dict:
         """Hit every candidate path with every auth style and return a summary dict."""
-        token_value = self.session.headers.get("Authorization", "").split(" ", 1)[-1]
-        auth_variants = {
-            "Bearer": {"Authorization": f"Bearer {token_value}"},
-            "Token":  {"Authorization": f"Token {token_value}"},
-            "none":   {},
-        }
         results = {}
         for path in self._candidate_paths():
             url = self.base + path
-            for auth_name, headers in auth_variants.items():
+            for auth_name, headers in self._auth_variants().items():
                 key = f"{path}  [{auth_name}]"
                 try:
                     r = self.session.get(url, headers=headers, timeout=10)
@@ -94,7 +88,7 @@ class DispatcharrClient:
         if content.lstrip()[:1] in (b"{", b"["):
             return self._json_to_xmltv(json.loads(content))
 
-        if content.lstrip()[:1] not in (b"<",):
+        if content.lstrip()[:1] != b"<":
             raise RuntimeError(
                 f"EPG URL did not return XML or JSON.\n"
                 f"Response starts with: {snippet[:200]}"
@@ -122,21 +116,22 @@ class DispatcharrClient:
             "/xmltv",
         ]
 
+    def _auth_variants(self) -> dict[str, dict]:
+        token = self.session.headers.get("Authorization", "").split(" ", 1)[-1]
+        return {
+            "Bearer": {"Authorization": f"Bearer {token}"},
+            "Token":  {"Authorization": f"Token {token}"},
+            "none":   {},
+        }
+
     def _fetch_xmltv(self) -> ET.Element:
         """Try each candidate endpoint (with multiple auth styles) and return the first valid XMLTV."""
         last_exc: Optional[Exception] = None
         attempted: list[str] = []
 
-        token_value = self.session.headers.get("Authorization", "").split(" ", 1)[-1]
-        auth_headers_to_try = [
-            {"Authorization": f"Bearer {token_value}"},
-            {"Authorization": f"Token {token_value}"},
-            {},
-        ]
-
         for path in self._candidate_paths():
             url = self.base + path
-            for auth in auth_headers_to_try:
+            for auth in self._auth_variants().values():
                 try:
                     resp = self.session.get(url, headers=auth, timeout=60)
                 except requests.RequestException as exc:
@@ -273,6 +268,21 @@ class DispatcharrClient:
     @staticmethod
     def _json_to_xmltv(data: object) -> ET.Element:
         """Best-effort conversion of a JSON EPG payload to an in-memory XMLTV element tree."""
+
+        def to_xmltv_dt(s: str) -> str:
+            s = s.strip()
+            if not s:
+                return ""
+            if len(s) >= 14 and s[:14].isdigit():
+                return s if " " in s else s + " +0000"
+            for fmt in ("%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S"):
+                try:
+                    dt = datetime.strptime(s[:19], fmt).replace(tzinfo=timezone.utc)
+                    return dt.strftime("%Y%m%d%H%M%S") + " +0000"
+                except ValueError:
+                    continue
+            return s
+
         root = ET.Element("tv")
         items: list = data if isinstance(data, list) else data.get("programmes", data.get("events", []))  # type: ignore[union-attr]
 
@@ -289,27 +299,10 @@ class DispatcharrClient:
                 ET.SubElement(ch_el, "display-name").text = ch_name
                 seen_channels.add(ch_id)
 
-            start_raw = str(item.get("start") or item.get("startTime") or "")
-            stop_raw  = str(item.get("stop")  or item.get("end") or item.get("endTime") or "")
-
-            def to_xmltv_dt(s: str) -> str:
-                s = s.strip()
-                if not s:
-                    return ""
-                if len(s) >= 14 and s[:14].isdigit():
-                    return s if " " in s else s + " +0000"
-                for fmt in ("%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S"):
-                    try:
-                        dt = datetime.strptime(s[:19], fmt).replace(tzinfo=timezone.utc)
-                        return dt.strftime("%Y%m%d%H%M%S") + " +0000"
-                    except ValueError:
-                        continue
-                return s
-
-            start_str = to_xmltv_dt(start_raw)
-            stop_str  = to_xmltv_dt(stop_raw)
+            start_str = to_xmltv_dt(str(item.get("start") or item.get("startTime") or ""))
             if not start_str:
                 continue
+            stop_str = to_xmltv_dt(str(item.get("stop") or item.get("end") or item.get("endTime") or ""))
 
             prog_el = ET.SubElement(root, "programme", start=start_str, stop=stop_str, channel=ch_id)
             ET.SubElement(prog_el, "title").text = str(item.get("title") or item.get("name") or "")

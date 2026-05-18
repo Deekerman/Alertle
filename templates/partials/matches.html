@@ -107,7 +107,7 @@
           <div class="flex flex-wrap gap-1">
             {% for num, name in g.channels %}
             <span class="pill bg-surface border border-border text-gray-300">
-              {% if num %}<span class="text-muted mr-0.5 font-normal">{{ num }}</span>{% endif %}{{ name }}
+              {% if num %}<span x-show="$store.ui.showChannelNums" class="text-muted mr-0.5 font-normal">{{ num }} –</span>{% endif %}{{ name }}
             </span>
             {% endfor %}
           </div>

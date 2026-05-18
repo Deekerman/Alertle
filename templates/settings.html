@@ -142,176 +142,123 @@
       </div>
     </section>
 
-    <!-- ── Notification channels ────────────────────────────────────── -->
-    {% set notifs = cfg.get('notifications', {}) %}
-
-    {% macro channel_section(key, title, color) %}
-    {% set ch = notifs.get(key, {}) %}
-    <section class="card overflow-hidden" x-data="{ open: {{ 'true' if ch.get('enabled') else 'false' }} }">
-      <div class="flex items-center justify-between px-5 py-4">
-        <div class="flex items-center gap-3">
-          <!-- Toggle switch -->
-          <label class="relative inline-flex items-center cursor-pointer" @click.stop>
-            <input type="checkbox" name="{{ key }}_enabled" value="on"
-                   class="sr-only peer" {% if ch.get('enabled') %}checked{% endif %}>
-            <div class="w-8 h-4 rounded-full peer
-                        bg-border
-                        peer-checked:bg-indigo-600
-                        after:content-[''] after:absolute after:top-0.5 after:left-0.5
-                        after:bg-white after:rounded-full after:w-3 after:h-3
-                        after:transition-all
-                        peer-checked:after:translate-x-4">
-            </div>
-          </label>
-          <p class="text-sm font-medium text-gray-100">{{ title }}</p>
-        </div>
-        <div class="flex items-center gap-2">
-          <button type="button"
-            hx-post="/action/test/{{ key }}"
-            hx-swap="none"
-            class="btn-ghost text-xs py-1">Test</button>
-          <button type="button" @click="open = !open"
-                  class="text-muted hover:text-gray-300 transition-colors p-1">
-            <svg class="w-4 h-4 transition-transform duration-150" :class="open ? 'rotate-180' : ''"
-                 fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="m19 9-7 7-7-7"/>
-            </svg>
-          </button>
-        </div>
-      </div>
-      <div x-show="open" x-cloak class="px-5 pb-5 border-t border-border pt-4">
-        {{ caller() }}
-      </div>
-    </section>
-    {% endmacro %}
-
-    <!-- Telegram -->
-    {% set tg = notifs.get('telegram', {}) %}
-    <section class="card overflow-hidden" x-data="{ open: {{ 'true' if tg.get('enabled') else 'false' }} }">
-      <div class="flex items-center justify-between px-5 py-4">
-        <div class="flex items-center gap-3">
-          <label class="relative inline-flex items-center cursor-pointer" @click.stop>
-            <input type="checkbox" name="telegram_enabled" value="on" class="sr-only peer" {% if tg.get('enabled') %}checked{% endif %}>
-            <div class="w-8 h-4 rounded-full bg-border peer-checked:bg-indigo-600 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:w-3 after:h-3 after:transition-all peer-checked:after:translate-x-4"></div>
-          </label>
-          <p class="text-sm font-medium text-gray-100">Telegram</p>
-        </div>
-        <div class="flex items-center gap-2">
-          <span id="test-result-telegram" class="text-xs"></span>
-          <button type="button" hx-post="/action/test/telegram" hx-target="#test-result-telegram" hx-swap="innerHTML" class="btn-ghost text-xs py-1">Test</button>
-          <button type="button" @click="open = !open" class="text-muted hover:text-gray-300 p-1">
-            <svg class="w-4 h-4 transition-transform duration-150" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m19 9-7 7-7-7"/></svg>
-          </button>
-        </div>
-      </div>
-      <div x-show="open" x-cloak class="px-5 pb-5 border-t border-border pt-4 grid grid-cols-2 gap-4">
-        <div>
-          <label class="form-label">Bot Token</label>
-          <input name="telegram_bot_token" class="field" type="password" value="{{ tg.get('bot_token', '') }}" placeholder="123456:ABC-DEF…" />
-        </div>
-        <div>
-          <label class="form-label">Chat ID</label>
-          <input name="telegram_chat_id" class="field" value="{{ tg.get('chat_id', '') }}" placeholder="-1001234567890" />
-        </div>
-      </div>
-    </section>
-
-    <!-- Pushover -->
-    {% set po = notifs.get('pushover', {}) %}
-    <section class="card overflow-hidden" x-data="{ open: {{ 'true' if po.get('enabled') else 'false' }} }">
-      <div class="flex items-center justify-between px-5 py-4">
-        <div class="flex items-center gap-3">
-          <label class="relative inline-flex items-center cursor-pointer" @click.stop>
-            <input type="checkbox" name="pushover_enabled" value="on" class="sr-only peer" {% if po.get('enabled') %}checked{% endif %}>
-            <div class="w-8 h-4 rounded-full bg-border peer-checked:bg-indigo-600 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:w-3 after:h-3 after:transition-all peer-checked:after:translate-x-4"></div>
-          </label>
-          <p class="text-sm font-medium text-gray-100">Pushover</p>
-        </div>
-        <div class="flex items-center gap-2">
-          <span id="test-result-pushover" class="text-xs"></span>
-          <button type="button" hx-post="/action/test/pushover" hx-target="#test-result-pushover" hx-swap="innerHTML" class="btn-ghost text-xs py-1">Test</button>
-          <button type="button" @click="open = !open" class="text-muted hover:text-gray-300 p-1">
-            <svg class="w-4 h-4 transition-transform duration-150" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m19 9-7 7-7-7"/></svg>
-          </button>
-        </div>
-      </div>
-      <div x-show="open" x-cloak class="px-5 pb-5 border-t border-border pt-4 grid grid-cols-2 gap-4">
-        <div>
-          <label class="form-label">App Token</label>
-          <input name="pushover_app_token" class="field" type="password" value="{{ po.get('app_token', '') }}" placeholder="App token" />
-        </div>
-        <div>
-          <label class="form-label">User Key</label>
-          <input name="pushover_user_key" class="field" type="password" value="{{ po.get('user_key', '') }}" placeholder="User key" />
-        </div>
-      </div>
-    </section>
-
-    <!-- Ntfy -->
-    {% set nt = notifs.get('ntfy', {}) %}
-    <section class="card overflow-hidden" x-data="{ open: {{ 'true' if nt.get('enabled') else 'false' }} }">
-      <div class="flex items-center justify-between px-5 py-4">
-        <div class="flex items-center gap-3">
-          <label class="relative inline-flex items-center cursor-pointer" @click.stop>
-            <input type="checkbox" name="ntfy_enabled" value="on" class="sr-only peer" {% if nt.get('enabled') %}checked{% endif %}>
-            <div class="w-8 h-4 rounded-full bg-border peer-checked:bg-indigo-600 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:w-3 after:h-3 after:transition-all peer-checked:after:translate-x-4"></div>
-          </label>
-          <p class="text-sm font-medium text-gray-100">Ntfy</p>
-        </div>
-        <div class="flex items-center gap-2">
-          <span id="test-result-ntfy" class="text-xs"></span>
-          <button type="button" hx-post="/action/test/ntfy" hx-target="#test-result-ntfy" hx-swap="innerHTML" class="btn-ghost text-xs py-1">Test</button>
-          <button type="button" @click="open = !open" class="text-muted hover:text-gray-300 p-1">
-            <svg class="w-4 h-4 transition-transform duration-150" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m19 9-7 7-7-7"/></svg>
-          </button>
-        </div>
-      </div>
-      <div x-show="open" x-cloak class="px-5 pb-5 border-t border-border pt-4 grid grid-cols-3 gap-4">
-        <div>
-          <label class="form-label">Server URL</label>
-          <input name="ntfy_url" class="field" value="{{ nt.get('url', 'https://ntfy.sh') }}" placeholder="https://ntfy.sh" />
-        </div>
-        <div>
-          <label class="form-label">Topic</label>
-          <input name="ntfy_topic" class="field" value="{{ nt.get('topic', '') }}" placeholder="epg-sports" />
-        </div>
-        <div>
-          <label class="form-label">Token <span class="text-muted font-normal">(optional)</span></label>
-          <input name="ntfy_token" class="field" type="password" value="{{ nt.get('token', '') }}" placeholder="Private topic token" />
-        </div>
-      </div>
-    </section>
-
-    <!-- Discord -->
-    {% set dc = notifs.get('discord', {}) %}
-    <section class="card overflow-hidden" x-data="{ open: {{ 'true' if dc.get('enabled') else 'false' }} }">
-      <div class="flex items-center justify-between px-5 py-4">
-        <div class="flex items-center gap-3">
-          <label class="relative inline-flex items-center cursor-pointer" @click.stop>
-            <input type="checkbox" name="discord_enabled" value="on" class="sr-only peer" {% if dc.get('enabled') %}checked{% endif %}>
-            <div class="w-8 h-4 rounded-full bg-border peer-checked:bg-indigo-600 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:w-3 after:h-3 after:transition-all peer-checked:after:translate-x-4"></div>
-          </label>
-          <p class="text-sm font-medium text-gray-100">Discord</p>
-        </div>
-        <div class="flex items-center gap-2">
-          <span id="test-result-discord" class="text-xs"></span>
-          <button type="button" hx-post="/action/test/discord" hx-target="#test-result-discord" hx-swap="innerHTML" class="btn-ghost text-xs py-1">Test</button>
-          <button type="button" @click="open = !open" class="text-muted hover:text-gray-300 p-1">
-            <svg class="w-4 h-4 transition-transform duration-150" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m19 9-7 7-7-7"/></svg>
-          </button>
-        </div>
-      </div>
-      <div x-show="open" x-cloak class="px-5 pb-5 border-t border-border pt-4">
-        <label class="form-label">Webhook URL</label>
-        <input name="discord_webhook_url" class="field" value="{{ dc.get('webhook_url', '') }}" placeholder="https://discord.com/api/webhooks/…" />
-      </div>
-    </section>
-
     <!-- Save -->
     <div class="flex justify-end pt-2">
       <button type="submit" class="btn-primary px-8">Save Settings</button>
     </div>
 
   </form>
+
+  <!-- ── Notification Endpoints (outside main form — managed via HTMX) ── -->
+  <div class="mt-5" x-data="{ showAdd: false, type: 'telegram' }">
+    <div class="card p-5 space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-sm font-semibold text-white">Notification Endpoints</h2>
+          <p class="text-xs text-muted mt-0.5">Configure services to send notifications through — each subscription can target specific endpoints.</p>
+        </div>
+        <button @click="showAdd = !showAdd" class="btn-secondary text-xs">
+          <svg class="w-3.5 h-3.5 transition-transform duration-150" :class="showAdd ? 'rotate-45' : ''"
+               fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+          </svg>
+          <span x-text="showAdd ? 'Cancel' : 'Add Endpoint'"></span>
+        </button>
+      </div>
+
+      <!-- Add form -->
+      <div x-show="showAdd" x-cloak
+           x-transition:enter="transition ease-out duration-150"
+           x-transition:enter-start="opacity-0 -translate-y-1"
+           x-transition:enter-end="opacity-100 translate-y-0"
+           class="border border-border rounded-xl p-4 bg-bg space-y-4">
+        <form
+          hx-post="/partial/endpoints"
+          hx-target="#endpoint-list"
+          hx-swap="outerHTML"
+          @htmx:after-request="if($event.detail.successful){ showAdd=false; $el.reset(); type='telegram'; }"
+        >
+          <div class="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="form-label">Name</label>
+              <input name="ep_name" required class="field" placeholder="e.g. NFL Discord" />
+            </div>
+            <div>
+              <label class="form-label">Type</label>
+              <select name="ep_type" x-model="type" class="field">
+                <option value="telegram">Telegram</option>
+                <option value="discord">Discord</option>
+                <option value="ntfy">Ntfy</option>
+                <option value="pushover">Pushover</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Telegram -->
+          <div x-show="type === 'telegram'" class="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="form-label">Bot Token</label>
+              <input name="telegram_bot_token" class="field" type="password" placeholder="123456:ABC-DEF…" />
+            </div>
+            <div>
+              <label class="form-label">Chat ID</label>
+              <input name="telegram_chat_id" class="field" placeholder="-1001234567890" />
+            </div>
+          </div>
+
+          <!-- Discord -->
+          <div x-show="type === 'discord'" class="mb-4">
+            <label class="form-label">Webhook URL</label>
+            <input name="discord_webhook_url" class="field" placeholder="https://discord.com/api/webhooks/…" />
+          </div>
+
+          <!-- Ntfy -->
+          <div x-show="type === 'ntfy'" class="grid grid-cols-3 gap-4 mb-4">
+            <div>
+              <label class="form-label">Server URL</label>
+              <input name="ntfy_url" class="field" placeholder="https://ntfy.sh" />
+            </div>
+            <div>
+              <label class="form-label">Topic</label>
+              <input name="ntfy_topic" class="field" placeholder="my-alerts" />
+            </div>
+            <div>
+              <label class="form-label">Token <span class="text-muted font-normal">(optional)</span></label>
+              <input name="ntfy_token" class="field" type="password" placeholder="Private topic token" />
+            </div>
+          </div>
+
+          <!-- Pushover -->
+          <div x-show="type === 'pushover'" class="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="form-label">App Token</label>
+              <input name="pushover_app_token" class="field" type="password" placeholder="App token" />
+            </div>
+            <div>
+              <label class="form-label">User Key</label>
+              <input name="pushover_user_key" class="field" type="password" placeholder="User key" />
+            </div>
+          </div>
+
+          <div class="flex justify-end">
+            <button type="submit" class="btn-primary text-xs">Add Endpoint</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Endpoint list -->
+      <div
+        hx-get="/partial/endpoints"
+        hx-trigger="load"
+        hx-target="this"
+        hx-swap="innerHTML"
+      >
+        <div id="endpoint-list">
+          <p class="text-xs text-muted text-center py-4">Loading…</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 {% endblock %}

@@ -43,9 +43,11 @@
         <td class="px-4 py-4 align-top">
           <p class="font-medium text-gray-100">{{ sub.label }}</p>
           {% if sub.get('notify_channels') %}
+          {% set ep_names = {} %}
+          {% for ep in (endpoints or []) %}{% set _ = ep_names.update({ep.id: ep.name}) %}{% endfor %}
           <div class="flex flex-wrap gap-0.5 mt-1.5">
             {% for ch in sub.notify_channels %}
-            <span class="pill bg-violet-500/10 text-violet-400 border border-violet-500/20 text-[10px]">{{ ch }}</span>
+            <span class="pill bg-violet-500/10 text-violet-400 border border-violet-500/20 text-[10px]">{{ ep_names.get(ch, ch) }}</span>
             {% endfor %}
           </div>
           {% endif %}

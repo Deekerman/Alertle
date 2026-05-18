@@ -27,30 +27,25 @@ notification_template:
   title: "[{rule}] {title}"
   body: "Time    : {time}  ({duration} min)\nChannel : {channels}\n{description}"
 
-# ── Notification channels ───────────────────────────────────────────────────
-# Leave a section empty / comment it out to disable that channel.
+# ── Notification endpoints ──────────────────────────────────────────────────
+# Each entry is a named destination. Add as many as you like — different
+# Telegram bots, Discord webhooks, etc. Per-subscription notify_channels
+# references endpoint IDs; leave it empty to send to all endpoints.
+#
+# Supported types: telegram, discord, ntfy, pushover
+#
+# notification_endpoints:
+#   - id: my-telegram
+#     name: "My Telegram"
+#     type: telegram
+#     bot_token: "123456:ABC-DEF..."
+#     chat_id: "-1001234567890"
+#   - id: nfl-discord
+#     name: "NFL Discord"
+#     type: discord
+#     webhook_url: "https://discord.com/api/webhooks/..."
 
-notifications:
-  telegram:
-    enabled: false
-    bot_token: "YOUR_BOT_TOKEN"
-    chat_id: "YOUR_CHAT_ID"
-
-  pushover:
-    enabled: false
-    app_token: "YOUR_APP_TOKEN"
-    user_key: "YOUR_USER_KEY"
-    # priority: 0  # -2 silent, -1 quiet, 0 normal, 1 high, 2 emergency
-
-  ntfy:
-    enabled: false
-    url: "https://ntfy.sh"          # or your self-hosted instance
-    topic: "epg-sports"
-    # token: ""                     # only needed for private topics
-
-  discord:
-    enabled: false
-    webhook_url: "https://discord.com/api/webhooks/..."
+notification_endpoints: []
 
 # ── Watch list ──────────────────────────────────────────────────────────────
 # Each entry is a subscription rule. All matching events will trigger a

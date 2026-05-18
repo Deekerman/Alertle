@@ -105,7 +105,9 @@ def _preview_vars_filter(g) -> dict:
     cfg = load_config()
     show_nums = cfg.get("notification_template", {}).get("show_channel_nums", False)
     vars_ = build_preview_vars(g, show_channel_nums=show_nums)
-    vars_["notify_channels"] = ", ".join(g.subscription.notify_channels)
+    ep_by_id = {ep["id"]: ep.get("name", ep["id"]) for ep in cfg.get("notification_endpoints", [])}
+    channel_names = [ep_by_id.get(ch, ch) for ch in g.subscription.notify_channels]
+    vars_["notify_channels"] = ", ".join(channel_names)
     vars_["sub_notif_title_template"] = g.subscription.notif_title_template or ""
     vars_["sub_notif_body_template"] = g.subscription.notif_body_template or ""
     return vars_
@@ -128,12 +130,6 @@ def save_config(cfg: dict) -> None:
     tmp.replace(CONFIG_PATH)
 
 
-_CHANNEL_LABELS = [
-    ("telegram", "Telegram"), ("pushover", "Pushover"),
-    ("ntfy", "Ntfy"), ("discord", "Discord"),
-]
-
-
 def _validate_url(url: str) -> str:
     """Reject non-http(s) schemes to prevent SSRF via file://, ftp://, etc."""
     from urllib.parse import urlparse
@@ -145,9 +141,14 @@ def _validate_url(url: str) -> str:
     return url
 
 
-def _enabled_channels(cfg: dict) -> list[tuple[str, str]]:
-    n = cfg.get("notifications", {})
-    return [(k, lbl) for k, lbl in _CHANNEL_LABELS if n.get(k, {}).get("enabled")]
+def _get_endpoints(cfg: dict) -> list[dict]:
+    return cfg.get("notification_endpoints", [])
+
+
+def _slugify(s: str) -> str:
+    import re
+    s = re.sub(r"[^a-z0-9]+", "-", s.lower().strip())
+    return s.strip("-") or "endpoint"
 
 
 def _notif_template(cfg: dict) -> dict:
@@ -159,9 +160,37 @@ def _notif_template(cfg: dict) -> dict:
 
 
 def _send_to_channels(title: str, body: str, channels: list[str], cfg: dict) -> list[str]:
-    """Send to specified channels (empty = all enabled). Returns error strings."""
+    """Send to specified endpoint IDs (empty = all). Returns error strings."""
+    endpoints = cfg.get("notification_endpoints", [])
+    if not endpoints:
+        return _send_to_channels_legacy(title, body, channels, cfg)
+    targets = endpoints if not channels else [ep for ep in endpoints if ep.get("id") in channels]
+    errors = []
+    for ep in targets:
+        ep_id = ep.get("id", "?")
+        try:
+            t = ep.get("type", "")
+            if t == "telegram":
+                from notifiers.telegram import TelegramNotifier
+                TelegramNotifier(ep["bot_token"], str(ep["chat_id"])).send(title, body)
+            elif t == "pushover":
+                from notifiers.pushover import PushoverNotifier
+                PushoverNotifier(ep["app_token"], ep["user_key"]).send(title, body)
+            elif t == "ntfy":
+                from notifiers.ntfy import NtfyNotifier
+                NtfyNotifier(ep["url"], ep["topic"], ep.get("token", "")).send(title, body)
+            elif t == "discord":
+                from notifiers.discord import DiscordNotifier
+                DiscordNotifier(ep["webhook_url"]).send(title, body)
+        except Exception as exc:
+            errors.append(f"{ep_id}: {exc}")
+    return errors
+
+
+def _send_to_channels_legacy(title: str, body: str, channels: list[str], cfg: dict) -> list[str]:
+    _LEGACY = [("telegram", "Telegram"), ("pushover", "Pushover"), ("ntfy", "Ntfy"), ("discord", "Discord")]
     n = cfg.get("notifications", {})
-    all_enabled = [k for k, _ in _CHANNEL_LABELS if n.get(k, {}).get("enabled")]
+    all_enabled = [k for k, _ in _LEGACY if n.get(k, {}).get("enabled")]
     targets = [ch for ch in channels if ch in all_enabled] if channels else all_enabled
     errors = []
     for ch in targets:
@@ -239,7 +268,7 @@ async def page_subscriptions(request: Request):
         "page": "subscriptions",
         "subscriptions": cfg.get("subscriptions", []),
         "default_lead": cfg.get("default_lead_time_minutes", 30),
-        "enabled_channels": _enabled_channels(cfg),
+        "endpoints": _get_endpoints(cfg),
     })
 
 
@@ -324,7 +353,7 @@ async def partial_subscriptions(request: Request):
     cfg = load_config()
     return templates.TemplateResponse(request, "partials/sub_rows.html", {
         "subscriptions": cfg.get("subscriptions", []),
-        "enabled_channels": _enabled_channels(cfg),
+        "endpoints": _get_endpoints(cfg),
     })
 
 
@@ -375,7 +404,7 @@ def _sub_response(request: Request, subs: list, toast: str, cfg: Optional[dict] 
         cfg = load_config()
     resp = templates.TemplateResponse(request, "partials/sub_rows.html", {
         "subscriptions": subs,
-        "enabled_channels": _enabled_channels(cfg),
+        "endpoints": _get_endpoints(cfg),
     })
     resp.headers["X-Toast"] = toast
     return resp
@@ -551,46 +580,6 @@ async def save_settings(request: Request):
         tpl["body"] = tpl_body
     tpl["show_channel_nums"] = form.get("notif_show_channel_nums") == "on"
 
-    n = cfg.setdefault("notifications", {})
-
-    # Telegram
-    t = n.setdefault("telegram", {})
-    t["enabled"] = form.get("telegram_enabled") == "on"
-    if form.get("telegram_bot_token"):
-        t["bot_token"] = form.get("telegram_bot_token").strip()
-    if form.get("telegram_chat_id"):
-        t["chat_id"] = form.get("telegram_chat_id").strip()
-
-    # Pushover
-    p = n.setdefault("pushover", {})
-    p["enabled"] = form.get("pushover_enabled") == "on"
-    if form.get("pushover_app_token"):
-        p["app_token"] = form.get("pushover_app_token").strip()
-    if form.get("pushover_user_key"):
-        p["user_key"] = form.get("pushover_user_key").strip()
-
-    # Ntfy
-    nt = n.setdefault("ntfy", {})
-    nt["enabled"] = form.get("ntfy_enabled") == "on"
-    if form.get("ntfy_url"):
-        try:
-            nt["url"] = _validate_url(form.get("ntfy_url").strip())
-        except ValueError as exc:
-            return Response(status_code=400, headers={"X-Toast": str(exc)})
-    if form.get("ntfy_topic"):
-        nt["topic"] = form.get("ntfy_topic").strip()
-    if form.get("ntfy_token"):
-        nt["token"] = form.get("ntfy_token").strip()
-
-    # Discord
-    dc = n.setdefault("discord", {})
-    dc["enabled"] = form.get("discord_enabled") == "on"
-    if form.get("discord_webhook_url"):
-        try:
-            dc["webhook_url"] = _validate_url(form.get("discord_webhook_url").strip())
-        except ValueError as exc:
-            return Response(status_code=400, headers={"X-Toast": str(exc)})
-
     save_config(cfg)
     bust_cache()
 
@@ -617,6 +606,74 @@ async def test_notification(channel: str):
             status_code=400,
         )
     return HTMLResponse(content='<span class="text-green-400 text-xs font-medium">✓ Sent</span>')
+
+
+@app.get("/partial/endpoints", response_class=HTMLResponse)
+async def partial_endpoints(request: Request):
+    cfg = load_config()
+    return templates.TemplateResponse(request, "partials/endpoints.html", {
+        "endpoints": _get_endpoints(cfg),
+    })
+
+
+@app.post("/partial/endpoints", response_class=HTMLResponse)
+async def add_endpoint(
+    request: Request,
+    ep_name: str = Form(...),
+    ep_type: str = Form(...),
+    telegram_bot_token: str = Form(""),
+    telegram_chat_id: str = Form(""),
+    discord_webhook_url: str = Form(""),
+    ntfy_url: str = Form(""),
+    ntfy_topic: str = Form(""),
+    ntfy_token: str = Form(""),
+    pushover_app_token: str = Form(""),
+    pushover_user_key: str = Form(""),
+):
+    if ep_type not in ("telegram", "discord", "ntfy", "pushover"):
+        return Response(status_code=400, headers={"X-Toast": "Invalid endpoint type"})
+    cfg = load_config()
+    endpoints = cfg.setdefault("notification_endpoints", [])
+    base_id = _slugify(ep_name)
+    existing = {ep.get("id") for ep in endpoints}
+    ep_id, n = base_id, 2
+    while ep_id in existing:
+        ep_id = f"{base_id}-{n}"; n += 1
+    entry: dict = {"id": ep_id, "name": ep_name.strip(), "type": ep_type}
+    try:
+        if ep_type == "telegram":
+            entry["bot_token"] = telegram_bot_token.strip()
+            entry["chat_id"] = telegram_chat_id.strip()
+        elif ep_type == "discord":
+            entry["webhook_url"] = _validate_url(discord_webhook_url.strip())
+        elif ep_type == "ntfy":
+            entry["url"] = _validate_url(ntfy_url.strip() or "https://ntfy.sh")
+            entry["topic"] = ntfy_topic.strip()
+            if ntfy_token.strip():
+                entry["token"] = ntfy_token.strip()
+        elif ep_type == "pushover":
+            entry["app_token"] = pushover_app_token.strip()
+            entry["user_key"] = pushover_user_key.strip()
+    except ValueError as exc:
+        return Response(status_code=400, headers={"X-Toast": str(exc)})
+    endpoints.append(entry)
+    save_config(cfg)
+    resp = templates.TemplateResponse(request, "partials/endpoints.html", {"endpoints": endpoints})
+    resp.headers["X-Toast"] = f"Added: {ep_name}"
+    return resp
+
+
+@app.delete("/partial/endpoints/{idx}", response_class=HTMLResponse)
+async def delete_endpoint(request: Request, idx: int):
+    cfg = load_config()
+    endpoints = cfg.get("notification_endpoints", [])
+    name = ""
+    if 0 <= idx < len(endpoints):
+        name = endpoints.pop(idx).get("name", "")
+        save_config(cfg)
+    resp = templates.TemplateResponse(request, "partials/endpoints.html", {"endpoints": endpoints})
+    resp.headers["X-Toast"] = f"Removed: {name}" if name else "Removed"
+    return resp
 
 
 @app.post("/action/preview-send")

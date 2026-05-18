@@ -1,0 +1,46 @@
+<div id="endpoint-list">
+{% if not endpoints %}
+<p class="text-sm text-muted text-center py-6">No endpoints configured. Add one above to start receiving notifications.</p>
+{% else %}
+<div class="space-y-2">
+  {% for ep in endpoints %}
+  {% set type_colors = {
+    'telegram':  ('bg-blue-500/10 text-blue-300 border-blue-500/20',   'Telegram'),
+    'discord':   ('bg-indigo-500/10 text-indigo-300 border-indigo-500/20', 'Discord'),
+    'ntfy':      ('bg-green-500/10 text-green-300 border-green-500/20',  'Ntfy'),
+    'pushover':  ('bg-orange-500/10 text-orange-300 border-orange-500/20', 'Pushover'),
+  } %}
+  {% set tc = type_colors.get(ep.get('type',''), ('bg-surface text-muted border-border', ep.get('type','?'))) %}
+  <div class="flex items-center gap-3 px-4 py-3 rounded-lg bg-bg border border-border group">
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center gap-2">
+        <p class="text-sm font-medium text-gray-100">{{ ep.get('name', ep.get('id')) }}</p>
+        <span class="pill border {{ tc[0] }}">{{ tc[1] }}</span>
+      </div>
+      <p class="text-xs text-muted truncate mt-0.5">
+        {% if ep.get('type') == 'telegram' %}chat: {{ ep.get('chat_id', '—') }}
+        {% elif ep.get('type') == 'discord' %}{{ (ep.get('webhook_url','') or '—')[:55] }}{% if (ep.get('webhook_url','') or '')|length > 55 %}…{% endif %}
+        {% elif ep.get('type') == 'ntfy' %}{{ ep.get('url','') }}/{{ ep.get('topic','') }}
+        {% elif ep.get('type') == 'pushover' %}user key: {{ (ep.get('user_key') or '—')[:8] }}…
+        {% endif %}
+      </p>
+    </div>
+    <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+      <span id="ep-test-{{ loop.index0 }}" class="text-xs"></span>
+      <button
+        hx-post="/action/test/{{ ep.get('id') }}"
+        hx-target="#ep-test-{{ loop.index0 }}"
+        hx-swap="innerHTML"
+        class="btn-ghost text-xs py-1 px-2">Test</button>
+      <button
+        hx-delete="/partial/endpoints/{{ loop.index0 }}"
+        hx-target="#endpoint-list"
+        hx-swap="outerHTML"
+        hx-confirm="Remove '{{ ep.get('name') }}'?"
+        class="btn-danger">Remove</button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+</div>

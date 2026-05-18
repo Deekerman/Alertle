@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="flex h-screen overflow-hidden" x-data>
+<div class="flex h-[calc(100vh-3.5rem)] overflow-hidden" x-data>
 
   <!-- ── Main content ──────────────────────────────────────────────────── -->
   <div class="flex-1 flex flex-col overflow-auto">
@@ -92,16 +92,16 @@
               <input name="exclude" class="field" placeholder="e.g. Women's, U20, highlights, replay" />
               <p class="form-hint">Comma-separated — any match blocks the notification</p>
             </div>
-            {% if enabled_channels %}
+            {% if endpoints %}
             <div class="mb-4" x-data="{ sel: [] }">
-              <label class="form-label">Notify via <span class="text-muted font-normal">(leave all unchecked = all enabled channels)</span></label>
+              <label class="form-label">Notify via <span class="text-muted font-normal">(leave all unchecked = all endpoints)</span></label>
               <div class="flex flex-wrap gap-4">
-                {% for ch_key, ch_label in enabled_channels %}
+                {% for ep in endpoints %}
                 <label class="flex items-center gap-1.5 text-xs cursor-pointer select-none">
                   <input type="checkbox" class="toggle"
-                    :checked="sel.includes('{{ ch_key }}')"
-                    @change="$event.target.checked ? sel.push('{{ ch_key }}') : sel.splice(sel.indexOf('{{ ch_key }}'), 1)" />
-                  {{ ch_label }}
+                    :checked="sel.includes('{{ ep.id }}')"
+                    @change="$event.target.checked ? sel.push('{{ ep.id }}') : sel.splice(sel.indexOf('{{ ep.id }}'), 1)" />
+                  {{ ep.name }}
                 </label>
                 {% endfor %}
               </div>
@@ -248,18 +248,18 @@
           <p class="form-hint mt-0.5">Blocks movies &amp; shows when using keyword/channel filter</p>
         </label>
       </div>
-      {% if enabled_channels %}
+      {% if endpoints %}
       <div>
         <label class="form-label">Notify via <span class="text-muted font-normal">(unchecked = all)</span></label>
         <div class="flex flex-wrap gap-4">
-          {% for ch_key, ch_label in enabled_channels %}
+          {% for ep in endpoints %}
           <label class="flex items-center gap-1.5 text-xs cursor-pointer select-none">
             <input type="checkbox" class="toggle"
-              :checked="$store.subEdit.notify_channels.includes('{{ ch_key }}')"
+              :checked="$store.subEdit.notify_channels.includes('{{ ep.id }}')"
               @change="$event.target.checked
-                ? $store.subEdit.notify_channels.push('{{ ch_key }}')
-                : $store.subEdit.notify_channels.splice($store.subEdit.notify_channels.indexOf('{{ ch_key }}'), 1)" />
-            {{ ch_label }}
+                ? $store.subEdit.notify_channels.push('{{ ep.id }}')
+                : $store.subEdit.notify_channels.splice($store.subEdit.notify_channels.indexOf('{{ ep.id }}'), 1)" />
+            {{ ep.name }}
           </label>
           {% endfor %}
         </div>

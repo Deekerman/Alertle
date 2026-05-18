@@ -29,29 +29,54 @@ def load_config(path: str) -> dict:
 
 
 def build_notifiers_map(cfg: dict) -> dict[str, BaseNotifier]:
-    """Build a dict of channel_key → notifier for all enabled channels."""
+    """Build endpoint_id → notifier for all configured notification endpoints."""
+    endpoints = cfg.get("notification_endpoints", [])
+    if not endpoints:
+        return _build_notifiers_from_legacy(cfg)
+
+    result: dict[str, BaseNotifier] = {}
+    for ep in endpoints:
+        ep_id = ep.get("id")
+        if not ep_id:
+            continue
+        try:
+            t = ep.get("type", "")
+            if t == "telegram":
+                from notifiers.telegram import TelegramNotifier
+                result[ep_id] = TelegramNotifier(ep["bot_token"], str(ep["chat_id"]))
+            elif t == "pushover":
+                from notifiers.pushover import PushoverNotifier
+                result[ep_id] = PushoverNotifier(ep["app_token"], ep["user_key"], ep.get("priority", 0))
+            elif t == "ntfy":
+                from notifiers.ntfy import NtfyNotifier
+                result[ep_id] = NtfyNotifier(ep["url"], ep["topic"], ep.get("token", ""))
+            elif t == "discord":
+                from notifiers.discord import DiscordNotifier
+                result[ep_id] = DiscordNotifier(ep["webhook_url"])
+        except KeyError as exc:
+            log.warning("Endpoint %r missing field %s — skipped", ep_id, exc)
+    return result
+
+
+def _build_notifiers_from_legacy(cfg: dict) -> dict[str, BaseNotifier]:
+    """Backward-compat: read old notifications: block if notification_endpoints absent."""
     n = cfg.get("notifications", {})
     result: dict[str, BaseNotifier] = {}
-
     if n.get("telegram", {}).get("enabled"):
         from notifiers.telegram import TelegramNotifier
         t = n["telegram"]
         result["telegram"] = TelegramNotifier(t["bot_token"], str(t["chat_id"]))
-
     if n.get("pushover", {}).get("enabled"):
         from notifiers.pushover import PushoverNotifier
         p = n["pushover"]
         result["pushover"] = PushoverNotifier(p["app_token"], p["user_key"], p.get("priority", 0))
-
     if n.get("ntfy", {}).get("enabled"):
         from notifiers.ntfy import NtfyNotifier
         nt = n["ntfy"]
         result["ntfy"] = NtfyNotifier(nt["url"], nt["topic"], nt.get("token", ""))
-
     if n.get("discord", {}).get("enabled"):
         from notifiers.discord import DiscordNotifier
         result["discord"] = DiscordNotifier(n["discord"]["webhook_url"])
-
     return result
 
 

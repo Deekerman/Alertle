@@ -240,7 +240,10 @@ def group_matches(matches: list[Match]) -> list[GroupedMatch]:
         rep = ms[0].programme
         main_title = min((m.programme.title for m in ms), key=len)
         cats = filter_categories(rep.categories)
-        channels = [(m.programme.channel_number, m.programme.channel_name) for m in ms]
+        channels = sorted(
+            [(m.programme.channel_number, m.programme.channel_name) for m in ms],
+            key=lambda c: (float(c[0]) if c[0].replace(".", "").isdigit() else float("inf"), c[1]),
+        )
         subtitle = next((m.programme.subtitle for m in ms if m.programme.subtitle), "")
         grouped.append(GroupedMatch(
             title=main_title,

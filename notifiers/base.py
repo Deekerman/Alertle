@@ -29,7 +29,7 @@ def build_preview_vars(g: "GroupedMatch", show_channel_nums: bool = False) -> di
         "subtitle": g.subtitle or "",
         "time": local_start.strftime("%a %b %-d  %-I:%M %p"),
         "date": local_start.strftime("%a %b %-d"),
-        "channels": ", ".join(ch_parts),
+        "channels": "\n".join(ch_parts),
         "rule": g.subscription.label,
         "duration": str(int((g.stop - g.start).total_seconds() / 60)),
         "description": g.description or "",

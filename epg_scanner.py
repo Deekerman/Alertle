@@ -3,6 +3,7 @@
 import json
 import logging
 import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as _safe_ET
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -96,7 +97,7 @@ class DispatcharrClient:
             )
 
         try:
-            return ET.fromstring(content)
+            return _safe_ET.fromstring(content)
         except ET.ParseError as exc:
             raise RuntimeError(
                 f"EPG URL returned invalid XML ({exc}).\n"
@@ -165,7 +166,7 @@ class DispatcharrClient:
                         break
 
                 try:
-                    root = ET.fromstring(content)
+                    root = _safe_ET.fromstring(content)
                     log.info("EPG loaded from %s", url)
                     return root
                 except ET.ParseError as exc:

@@ -2,6 +2,7 @@
 
 import logging
 import re
+import signal
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Optional
@@ -65,6 +66,22 @@ def filter_categories(cats: list[str]) -> list[str]:
         if not dominated:
             result.append(cat)
     return result
+
+
+def _safe_match(pattern: re.Pattern, text: str, label: str) -> bool:
+    """Run regex with a 1-second timeout to guard against ReDoS."""
+    def _handler(signum, frame):
+        raise TimeoutError
+    old = signal.signal(signal.SIGALRM, _handler)
+    signal.alarm(1)
+    try:
+        return bool(pattern.search(text))
+    except TimeoutError:
+        log.warning("Regex timeout in subscription '%s' — pattern may cause ReDoS", label)
+        return False
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old)
 
 
 @dataclass
@@ -140,13 +157,13 @@ class Subscription:
             if self.keyword.lower() not in text:
                 return False
 
-        if self._title_re and not self._title_re.search(prog.title):
+        if self._title_re and not _safe_match(self._title_re, prog.title, self.label):
             return False
 
-        if self._subtitle_re and not self._subtitle_re.search(prog.subtitle):
+        if self._subtitle_re and not _safe_match(self._subtitle_re, prog.subtitle, self.label):
             return False
 
-        if self._desc_re and not self._desc_re.search(prog.description):
+        if self._desc_re and not _safe_match(self._desc_re, prog.description, self.label):
             return False
 
         if self.exclude:

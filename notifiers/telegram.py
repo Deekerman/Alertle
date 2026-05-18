@@ -1,3 +1,4 @@
+import html
 import logging
 import requests
 from .base import BaseNotifier
@@ -11,7 +12,7 @@ class TelegramNotifier(BaseNotifier):
         self.chat_id = chat_id
 
     def send(self, title: str, body: str) -> None:
-        text = f"<b>{title}</b>\n{body}"
+        text = f"<b>{html.escape(title)}</b>\n{html.escape(body)}"
         url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
         resp = requests.post(
             url,

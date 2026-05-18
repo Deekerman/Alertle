@@ -10,7 +10,8 @@ class DiscordNotifier(BaseNotifier):
         self.webhook_url = webhook_url
 
     def send(self, title: str, body: str) -> None:
-        payload = {"content": f"**{title}**\n{body}"}
+        safe_title = title.replace("*", "\\*").replace("_", "\\_").replace("`", "\\`")
+        payload = {"content": f"**{safe_title}**\n{body}"}
         resp = requests.post(self.webhook_url, json=payload, timeout=15)
         resp.raise_for_status()
         log.info("Discord notification sent: %s", title)

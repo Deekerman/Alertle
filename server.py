@@ -17,6 +17,7 @@ from typing import Optional
 import uvicorn
 import yaml
 from fastapi import BackgroundTasks, FastAPI, Form, Request, Response
+from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
@@ -78,7 +79,23 @@ async def lifespan(app):
     yield
 
 
-app = FastAPI(title="Alertle", lifespan=lifespan)
+app = FastAPI(title="Alertle", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+
+
+class _SecurityHeaders(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' https://cdn.tailwindcss.com https://unpkg.com 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline';"
+        )
+        return response
+
+app.add_middleware(_SecurityHeaders)
 templates = Jinja2Templates(directory=str(ROOT / "templates"))
 templates.env.filters["tojson"] = lambda v: json.dumps(v)
 templates.env.filters["category_color"] = _category_color
@@ -104,8 +121,10 @@ def load_config() -> dict:
 
 
 def save_config(cfg: dict) -> None:
+    import os, stat
     tmp = CONFIG_PATH.with_suffix(".yaml.tmp")
     tmp.write_text(yaml.dump(cfg, allow_unicode=True, sort_keys=False))
+    os.chmod(tmp, stat.S_IRUSR | stat.S_IWUSR)  # 0o600 — owner read/write only
     tmp.replace(CONFIG_PATH)
 
 
@@ -113,6 +132,17 @@ _CHANNEL_LABELS = [
     ("telegram", "Telegram"), ("pushover", "Pushover"),
     ("ntfy", "Ntfy"), ("discord", "Discord"), ("smtp", "Email"),
 ]
+
+
+def _validate_url(url: str) -> str:
+    """Reject non-http(s) schemes to prevent SSRF via file://, ftp://, etc."""
+    from urllib.parse import urlparse
+    if not url:
+        return url
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"URL must use http or https, got: {parsed.scheme!r}")
+    return url
 
 
 def _enabled_channels(cfg: dict) -> list[tuple[str, str]]:
@@ -475,12 +505,12 @@ async def probe_dispatcharr(request: Request):
         else:
             colour = "text-gray-500"
 
-        detail = (info.get("snippet") or info.get("error") or "")[:140]
+        detail = html.escape((info.get("snippet") or info.get("error") or "")[:140])
 
         rows += (
             f'<tr class="border-b border-border">'
-            f'<td class="py-1.5 pr-3 font-mono text-xs text-gray-300 whitespace-nowrap">{key}</td>'
-            f'<td class="py-1.5 pr-3 text-xs {colour} whitespace-nowrap">{status or "err"}</td>'
+            f'<td class="py-1.5 pr-3 font-mono text-xs text-gray-300 whitespace-nowrap">{html.escape(key)}</td>'
+            f'<td class="py-1.5 pr-3 text-xs {colour} whitespace-nowrap">{html.escape(str(status or "err"))}</td>'
             f'<td class="py-1.5 text-xs text-gray-500 break-all">{detail}</td>'
             f'</tr>'
         )
@@ -498,9 +528,12 @@ async def save_settings(request: Request):
     cfg = load_config()
 
     d = cfg.setdefault("dispatcharr", {})
-    d["url"] = form.get("dispatcharr_url", "").strip()
+    try:
+        d["url"] = _validate_url(form.get("dispatcharr_url", "").strip())
+        d["xmltv_url"] = _validate_url(form.get("xmltv_url", "").strip())
+    except ValueError as exc:
+        return Response(status_code=400, headers={"X-Toast": str(exc)})
     d["token"] = form.get("dispatcharr_token", "").strip()
-    d["xmltv_url"] = form.get("xmltv_url", "").strip()
     try:
         d["lookahead_days"] = int(form.get("lookahead_days", 7))
     except ValueError:
@@ -511,7 +544,7 @@ async def save_settings(request: Request):
     except ValueError:
         pass
     try:
-        cfg["poll_interval_seconds"] = int(form.get("poll_interval_seconds", 300))
+        cfg["poll_interval_seconds"] = max(60, int(form.get("poll_interval_seconds", 300)))
     except ValueError:
         pass
     cfg["espn_verify"] = form.get("espn_verify") == "on"
@@ -547,7 +580,10 @@ async def save_settings(request: Request):
     nt = n.setdefault("ntfy", {})
     nt["enabled"] = form.get("ntfy_enabled") == "on"
     if form.get("ntfy_url"):
-        nt["url"] = form.get("ntfy_url").strip()
+        try:
+            nt["url"] = _validate_url(form.get("ntfy_url").strip())
+        except ValueError as exc:
+            return Response(status_code=400, headers={"X-Toast": str(exc)})
     if form.get("ntfy_topic"):
         nt["topic"] = form.get("ntfy_topic").strip()
     if form.get("ntfy_token"):
@@ -557,7 +593,10 @@ async def save_settings(request: Request):
     dc = n.setdefault("discord", {})
     dc["enabled"] = form.get("discord_enabled") == "on"
     if form.get("discord_webhook_url"):
-        dc["webhook_url"] = form.get("discord_webhook_url").strip()
+        try:
+            dc["webhook_url"] = _validate_url(form.get("discord_webhook_url").strip())
+        except ValueError as exc:
+            return Response(status_code=400, headers={"X-Toast": str(exc)})
 
     # SMTP
     sm = n.setdefault("smtp", {})
@@ -609,6 +648,10 @@ async def preview_send(
     notif_body: str = Form(""),
     sub_label: str = Form(""),
 ):
+    # Enforce reasonable content limits
+    notif_title = notif_title[:300]
+    notif_body = notif_body[:2000]
+
     cfg = load_config()
     sub_channels: list[str] = []
     for s in cfg.get("subscriptions", []):
@@ -637,7 +680,7 @@ def _do_scan() -> None:
         run_scan(cfg, build_notifiers_map(cfg), NotificationStore(str(DB_PATH)), dry_run=False)
         bust_cache()
     except Exception as exc:
-        log.error("Scan error: %s", exc)
+        log.error("Scan error: %s", exc, exc_info=True)
 
 
 # ── Background auto-scanner ───────────────────────────────────────────────
@@ -658,7 +701,8 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Alertle web UI")
-    parser.add_argument("--host", default="0.0.0.0")
+    parser.add_argument("--host", default="0.0.0.0",
+                        help="Bind address (use 0.0.0.0 for LAN access, 127.0.0.1 for localhost only)")
     parser.add_argument("--port", type=int, default=8888)
     parser.add_argument("--config", default=str(CONFIG_PATH))
     parser.add_argument("--verbose", "-v", action="store_true")

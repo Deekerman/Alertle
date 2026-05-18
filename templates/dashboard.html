@@ -85,8 +85,8 @@
 {% block extra_scripts %}
 <script>
 window.NOTIF_TEMPLATES = {
-  title: {{ notification_template.title | tojson }},
-  body: {{ notification_template.body | tojson }},
+  title: {{ notification_template.title | tojson | safe }},
+  body: {{ notification_template.body | tojson | safe }},
 };
 </script>
 {% endblock %}

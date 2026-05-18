@@ -187,6 +187,7 @@ async def add_subscription(
     keyword: str = Form(""),
     channel: str = Form(""),
     title_pattern: str = Form(""),
+    subtitle_pattern: str = Form(""),
     desc_pattern: str = Form(""),
     exclude: str = Form(""),
     require_sport: str = Form(""),
@@ -205,6 +206,8 @@ async def add_subscription(
         entry["channel"] = channel.strip()
     if title_pattern.strip():
         entry["title_pattern"] = title_pattern.strip()
+    if subtitle_pattern.strip():
+        entry["subtitle_pattern"] = subtitle_pattern.strip()
     if desc_pattern.strip():
         entry["desc_pattern"] = desc_pattern.strip()
     exclude_list = [x.strip() for x in exclude.split(",") if x.strip()]

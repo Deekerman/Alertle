@@ -74,16 +74,19 @@ class Subscription:
     team: Optional[str] = None
     keyword: Optional[str] = None
     channel: Optional[str] = None
-    title_pattern: Optional[str] = None   # regex matched against programme title only
-    desc_pattern: Optional[str] = None    # regex matched against programme description only
+    title_pattern: Optional[str] = None    # regex matched against programme title only
+    subtitle_pattern: Optional[str] = None # regex matched against programme sub-title only
+    desc_pattern: Optional[str] = None     # regex matched against programme description only
     exclude: list[str] = field(default_factory=list)
     require_sport: bool = False
     lead_time_minutes: int = 30
     _title_re: Optional[re.Pattern] = field(default=None, init=False, repr=False, compare=False)
+    _subtitle_re: Optional[re.Pattern] = field(default=None, init=False, repr=False, compare=False)
     _desc_re: Optional[re.Pattern] = field(default=None, init=False, repr=False, compare=False)
 
     def __post_init__(self):
         self._title_re = self._compile(self.title_pattern)
+        self._subtitle_re = self._compile(self.subtitle_pattern)
         self._desc_re = self._compile(self.desc_pattern)
 
     def _compile(self, pattern: Optional[str]) -> Optional[re.Pattern]:
@@ -137,6 +140,9 @@ class Subscription:
         if self._title_re and not self._title_re.search(prog.title):
             return False
 
+        if self._subtitle_re and not self._subtitle_re.search(prog.subtitle):
+            return False
+
         if self._desc_re and not self._desc_re.search(prog.description):
             return False
 
@@ -181,6 +187,7 @@ def build_subscriptions(raw: list[dict], default_lead_time: int) -> list[Subscri
             keyword=entry.get("keyword"),
             channel=entry.get("channel"),
             title_pattern=entry.get("title_pattern"),
+            subtitle_pattern=entry.get("subtitle_pattern"),
             desc_pattern=entry.get("desc_pattern"),
             exclude=exclude_raw,
             require_sport=bool(entry.get("require_sport", False)),

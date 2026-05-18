@@ -20,6 +20,7 @@ class Programme:
     start: datetime
     stop: datetime
     channel_number: str = ""
+    subtitle: str = ""
     description: str = ""
     categories: list[str] = field(default_factory=list)
     uid: str = ""
@@ -249,15 +250,17 @@ class DispatcharrClient:
 
             channel_id = prog.get("channel", "")
             ch_name, ch_number = channels.get(channel_id, (channel_id, ""))
-            title_el = prog.find("title")
-            desc_el  = prog.find("desc")
-            categories = [c.text for c in prog.findall("category") if c.text]
+            title_el    = prog.find("title")
+            subtitle_el = prog.find("sub-title")
+            desc_el     = prog.find("desc")
+            categories  = [c.text for c in prog.findall("category") if c.text]
 
             programmes.append(Programme(
                 channel_id=channel_id,
                 channel_name=ch_name,
                 channel_number=ch_number,
                 title=title_el.text if title_el is not None else "",
+                subtitle=subtitle_el.text if subtitle_el is not None else "",
                 start=prog_start,
                 stop=prog_stop,
                 description=desc_el.text if desc_el is not None else "",
@@ -306,6 +309,9 @@ class DispatcharrClient:
 
             prog_el = ET.SubElement(root, "programme", start=start_str, stop=stop_str, channel=ch_id)
             ET.SubElement(prog_el, "title").text = str(item.get("title") or item.get("name") or "")
+            subtitle = str(item.get("subtitle") or item.get("subTitle") or item.get("sub_title") or "")
+            if subtitle:
+                ET.SubElement(prog_el, "sub-title").text = subtitle
             desc = str(item.get("description") or item.get("desc") or "")
             if desc:
                 ET.SubElement(prog_el, "desc").text = desc

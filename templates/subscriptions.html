@@ -74,16 +74,21 @@
         </div>
 
         <!-- Row 4: Regex patterns -->
-        <div class="grid grid-cols-2 gap-4 mb-4">
+        <div class="grid grid-cols-3 gap-4 mb-4">
           <div>
             <label class="form-label">Title regex</label>
             <input name="title_pattern" class="field font-mono" placeholder="e.g. NFL|Super Bowl" />
-            <p class="form-hint">Matched against programme title only</p>
+            <p class="form-hint">Programme title</p>
+          </div>
+          <div>
+            <label class="form-label">Subtitle regex</label>
+            <input name="subtitle_pattern" class="field font-mono" placeholder="e.g. Season \d+" />
+            <p class="form-hint">Episode / sub-title field</p>
           </div>
           <div>
             <label class="form-label">Description regex</label>
             <input name="desc_pattern" class="field font-mono" placeholder="e.g. playoff|final" />
-            <p class="form-hint">Matched against programme description only</p>
+            <p class="form-hint">Programme description</p>
           </div>
         </div>
 

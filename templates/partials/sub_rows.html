@@ -42,13 +42,16 @@
             {% if sub.get('title_pattern') %}
             <span class="pill bg-purple-500/10 text-purple-300 border border-purple-500/20 font-mono">title: {{ sub.title_pattern }}</span>
             {% endif %}
+            {% if sub.get('subtitle_pattern') %}
+            <span class="pill bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 font-mono">subtitle: {{ sub.subtitle_pattern }}</span>
+            {% endif %}
             {% if sub.get('desc_pattern') %}
             <span class="pill bg-pink-500/10 text-pink-300 border border-pink-500/20 font-mono">desc: {{ sub.desc_pattern }}</span>
             {% endif %}
             {% if sub.get('require_sport') %}
             <span class="pill bg-orange-500/10 text-orange-300 border border-orange-500/20">sport only</span>
             {% endif %}
-            {% if not sub.sport and not sub.team and not sub.keyword and not sub.channel and not sub.get('title_pattern') and not sub.get('desc_pattern') %}
+            {% if not sub.sport and not sub.team and not sub.keyword and not sub.channel and not sub.get('title_pattern') and not sub.get('subtitle_pattern') and not sub.get('desc_pattern') %}
             <span class="text-muted text-xs">—</span>
             {% endif %}
           </div>

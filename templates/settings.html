@@ -95,6 +95,38 @@
       </div>
     </section>
 
+    <!-- ── Notification message template ────────────────────────────── -->
+    {% set tpl = cfg.get('notification_template', {}) %}
+    <section class="card p-5 space-y-4">
+      <div>
+        <h2 class="text-sm font-semibold text-white">Notification Message</h2>
+        <p class="text-xs text-muted mt-0.5">Customise what the notification looks like. Preview events on the Dashboard.</p>
+      </div>
+      <div>
+        <label class="form-label">Title</label>
+        <input name="notif_title_tpl" class="field font-mono"
+               value="{{ tpl.get('title', '[{rule}] {title}') }}" />
+      </div>
+      <div>
+        <label class="form-label">Body</label>
+        <textarea name="notif_body_tpl" class="field font-mono" rows="3"
+          >{{ tpl.get('body', 'Time    : {time}  ({duration} min)\nChannel : {channels}\n{description}') }}</textarea>
+      </div>
+      <div class="text-xs text-muted/70 space-y-0.5 border-t border-border pt-3">
+        <p class="text-muted font-medium mb-1">Available variables</p>
+        <div class="flex flex-wrap gap-x-4 gap-y-0.5">
+          <span><code class="text-indigo-300">{rule}</code> — subscription label</span>
+          <span><code class="text-indigo-300">{title}</code> — event title</span>
+          <span><code class="text-indigo-300">{subtitle}</code> — episode / game subtitle</span>
+          <span><code class="text-indigo-300">{time}</code> — local start time</span>
+          <span><code class="text-indigo-300">{date}</code> — date only</span>
+          <span><code class="text-indigo-300">{channels}</code> — channel name(s)</span>
+          <span><code class="text-indigo-300">{duration}</code> — minutes</span>
+          <span><code class="text-indigo-300">{description}</code> — programme description</span>
+        </div>
+      </div>
+    </section>
+
     <!-- ── Notification channels ────────────────────────────────────── -->
     {% set notifs = cfg.get('notifications', {}) %}
 

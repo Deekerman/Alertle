@@ -107,7 +107,7 @@
         open: false, idx: null,
         label:'', sport:'', team:'', keyword:'', channel:'',
         title_pattern:'', subtitle_pattern:'', desc_pattern:'',
-        exclude:'', require_sport: false, lead:'',
+        exclude:'', require_sport: false, lead:'', notify_channels: [],
         fill(idx, data) {
           this.idx = idx;
           this.label            = data.label            || '';
@@ -121,6 +121,7 @@
           this.exclude = Array.isArray(data.exclude) ? data.exclude.join(', ') : '';
           this.require_sport    = !!data.require_sport;
           this.lead = data.lead_time_minutes != null ? String(data.lead_time_minutes) : '';
+          this.notify_channels  = Array.isArray(data.notify_channels) ? data.notify_channels : [];
           this.open = true;
         },
         close() { this.open = false; this.idx = null; }

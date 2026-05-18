@@ -12,7 +12,10 @@ import yaml
 
 from epg_scanner import DispatcharrClient
 from matcher import Match, build_subscriptions, find_matches, group_matches
-from notifiers.base import BaseNotifier, format_grouped_message
+from notifiers.base import (
+    BaseNotifier, DEFAULT_TITLE_TEMPLATE, DEFAULT_BODY_TEMPLATE,
+    build_preview_vars, format_grouped_message,
+)
 from storage import NotificationStore
 
 log = logging.getLogger(__name__)
@@ -25,50 +28,49 @@ def load_config(path: str) -> dict:
         return yaml.safe_load(f)
 
 
-def build_notifiers(cfg: dict) -> list[BaseNotifier]:
-    notifiers: list[BaseNotifier] = []
+def build_notifiers_map(cfg: dict) -> dict[str, BaseNotifier]:
+    """Build a dict of channel_key → notifier for all enabled channels."""
     n = cfg.get("notifications", {})
+    result: dict[str, BaseNotifier] = {}
 
     if n.get("telegram", {}).get("enabled"):
         from notifiers.telegram import TelegramNotifier
         t = n["telegram"]
-        notifiers.append(TelegramNotifier(t["bot_token"], str(t["chat_id"])))
+        result["telegram"] = TelegramNotifier(t["bot_token"], str(t["chat_id"]))
 
     if n.get("pushover", {}).get("enabled"):
         from notifiers.pushover import PushoverNotifier
         p = n["pushover"]
-        notifiers.append(PushoverNotifier(p["app_token"], p["user_key"], p.get("priority", 0)))
+        result["pushover"] = PushoverNotifier(p["app_token"], p["user_key"], p.get("priority", 0))
 
     if n.get("ntfy", {}).get("enabled"):
         from notifiers.ntfy import NtfyNotifier
         nt = n["ntfy"]
-        notifiers.append(NtfyNotifier(nt["url"], nt["topic"], nt.get("token", "")))
+        result["ntfy"] = NtfyNotifier(nt["url"], nt["topic"], nt.get("token", ""))
 
     if n.get("discord", {}).get("enabled"):
         from notifiers.discord import DiscordNotifier
-        notifiers.append(DiscordNotifier(n["discord"]["webhook_url"]))
+        result["discord"] = DiscordNotifier(n["discord"]["webhook_url"])
 
     if n.get("smtp", {}).get("enabled"):
         from notifiers.smtp import SmtpNotifier
         s = n["smtp"]
-        notifiers.append(
-            SmtpNotifier(
-                host=s["host"],
-                port=s["port"],
-                username=s["username"],
-                password=s["password"],
-                from_addr=s["from_addr"],
-                to_addrs=s["to_addrs"],
-                use_tls=s.get("use_tls", True),
-            )
+        result["smtp"] = SmtpNotifier(
+            host=s["host"], port=s["port"], username=s["username"],
+            password=s["password"], from_addr=s["from_addr"],
+            to_addrs=s["to_addrs"], use_tls=s.get("use_tls", True),
         )
 
-    return notifiers
+    return result
+
+
+def build_notifiers(cfg: dict) -> list[BaseNotifier]:
+    return list(build_notifiers_map(cfg).values())
 
 
 # ── Core scan logic ────────────────────────────────────────────────────────
 
-def run_scan(cfg: dict, notifiers: list[BaseNotifier], store: NotificationStore, dry_run: bool):
+def run_scan(cfg: dict, notifiers_map: dict[str, BaseNotifier], store: NotificationStore, dry_run: bool):
     dispatcharr = cfg["dispatcharr"]
     client = DispatcharrClient(
         dispatcharr["url"],
@@ -108,14 +110,17 @@ def run_scan(cfg: dict, notifiers: list[BaseNotifier], store: NotificationStore,
             log.debug("Already notified: %s / %s", g.subscription.label, g.title)
             continue
 
-        title, body = format_grouped_message(g)
+        notif_tpl = cfg.get("notification_template", {})
+        title_tpl = notif_tpl.get("title", DEFAULT_TITLE_TEMPLATE)
+        body_tpl = notif_tpl.get("body", DEFAULT_BODY_TEMPLATE)
+        title, body = format_grouped_message(g, title_tpl, body_tpl)
 
         if dry_run:
             print(f"\n{'─'*60}")
             print(f"[DRY RUN] {title}")
             print(body)
         else:
-            _dispatch(notifiers, title, body)
+            _dispatch(notifiers_map, g.subscription.notify_channels, title, body)
             store.mark_sent(g.group_uid, g.subscription.label, now.isoformat())
             sent_count += 1
 
@@ -124,12 +129,15 @@ def run_scan(cfg: dict, notifiers: list[BaseNotifier], store: NotificationStore,
         log.info("Notifications sent: %d", sent_count)
 
 
-def _dispatch(notifiers: list[BaseNotifier], title: str, body: str):
-    for notifier in notifiers:
+def _dispatch(notifiers_map: dict[str, BaseNotifier], sub_channels: list[str], title: str, body: str):
+    targets = notifiers_map if not sub_channels else {
+        k: v for k, v in notifiers_map.items() if k in sub_channels
+    }
+    for key, notifier in targets.items():
         try:
             notifier.send(title, body)
         except Exception as exc:
-            log.error("Notifier %s failed: %s", type(notifier).__name__, exc)
+            log.error("Notifier %s failed: %s", key, exc)
 
 
 # ── CLI ────────────────────────────────────────────────────────────────────
@@ -155,9 +163,9 @@ def main():
         sys.exit(1)
 
     cfg = load_config(args.config)
-    notifiers = build_notifiers(cfg)
+    notifiers_map = build_notifiers_map(cfg)
 
-    if not notifiers and not args.dry_run and not args.list:
+    if not notifiers_map and not args.dry_run and not args.list:
         log.warning("No notification channels enabled. Use --dry-run to test matching.")
 
     store = NotificationStore(args.db)
@@ -171,12 +179,12 @@ def main():
         log.info("Daemon mode: polling every %d seconds", interval)
         while True:
             try:
-                run_scan(cfg, notifiers, store, dry_run=args.dry_run)
+                run_scan(cfg, notifiers_map, store, dry_run=args.dry_run)
             except Exception as exc:
                 log.error("Scan error: %s", exc)
             time.sleep(interval)
     else:
-        run_scan(cfg, notifiers, store, dry_run=args.dry_run)
+        run_scan(cfg, notifiers_map, store, dry_run=args.dry_run)
 
 
 def _cmd_list(cfg: dict):

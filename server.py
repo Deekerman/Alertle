@@ -23,7 +23,9 @@ sys.path.insert(0, str(ROOT))
 
 from epg_scanner import DispatcharrClient, Programme
 from matcher import build_subscriptions, find_matches, group_matches, group_programmes
-from notifiers.base import format_grouped_message
+from notifiers.base import (
+    DEFAULT_TITLE_TEMPLATE, DEFAULT_BODY_TEMPLATE, build_preview_vars, format_grouped_message,
+)
 from storage import NotificationStore
 
 CONFIG_PATH = ROOT / "config.yaml"
@@ -71,6 +73,15 @@ templates = Jinja2Templates(directory=str(ROOT / "templates"))
 templates.env.filters["tojson"] = lambda v: json.dumps(v)
 templates.env.filters["category_color"] = _category_color
 
+
+def _preview_vars_filter(g) -> dict:
+    vars_ = build_preview_vars(g)
+    vars_["notify_channels"] = ", ".join(g.subscription.notify_channels)
+    return vars_
+
+
+templates.env.filters["preview_vars"] = _preview_vars_filter
+
 # ── Config helpers ─────────────────────────────────────────────────────────
 
 def load_config() -> dict:
@@ -82,6 +93,60 @@ def save_config(cfg: dict) -> None:
     tmp = CONFIG_PATH.with_suffix(".yaml.tmp")
     tmp.write_text(yaml.dump(cfg, allow_unicode=True, sort_keys=False))
     tmp.replace(CONFIG_PATH)
+
+
+_CHANNEL_LABELS = [
+    ("telegram", "Telegram"), ("pushover", "Pushover"),
+    ("ntfy", "Ntfy"), ("discord", "Discord"), ("smtp", "Email"),
+]
+
+
+def _enabled_channels(cfg: dict) -> list[tuple[str, str]]:
+    n = cfg.get("notifications", {})
+    return [(k, lbl) for k, lbl in _CHANNEL_LABELS if n.get(k, {}).get("enabled")]
+
+
+def _notif_template(cfg: dict) -> dict:
+    tpl = cfg.get("notification_template", {})
+    return {
+        "title": tpl.get("title", DEFAULT_TITLE_TEMPLATE),
+        "body": tpl.get("body", DEFAULT_BODY_TEMPLATE),
+    }
+
+
+def _send_to_channels(title: str, body: str, channels: list[str], cfg: dict) -> list[str]:
+    """Send to specified channels (empty = all enabled). Returns error strings."""
+    n = cfg.get("notifications", {})
+    all_enabled = [k for k, _ in _CHANNEL_LABELS if n.get(k, {}).get("enabled")]
+    targets = [ch for ch in channels if ch in all_enabled] if channels else all_enabled
+    errors = []
+    for ch in targets:
+        try:
+            if ch == "telegram":
+                from notifiers.telegram import TelegramNotifier
+                t = n["telegram"]
+                TelegramNotifier(t["bot_token"], str(t["chat_id"])).send(title, body)
+            elif ch == "pushover":
+                from notifiers.pushover import PushoverNotifier
+                p = n["pushover"]
+                PushoverNotifier(p["app_token"], p["user_key"]).send(title, body)
+            elif ch == "ntfy":
+                from notifiers.ntfy import NtfyNotifier
+                nt = n["ntfy"]
+                NtfyNotifier(nt["url"], nt["topic"], nt.get("token", "")).send(title, body)
+            elif ch == "discord":
+                from notifiers.discord import DiscordNotifier
+                DiscordNotifier(n["discord"]["webhook_url"]).send(title, body)
+            elif ch == "smtp":
+                from notifiers.smtp import SmtpNotifier
+                s = n["smtp"]
+                SmtpNotifier(
+                    s["host"], s["port"], s["username"], s["password"],
+                    s["from_addr"], s["to_addrs"], s.get("use_tls", True),
+                ).send(title, body)
+        except Exception as exc:
+            errors.append(f"{ch}: {exc}")
+    return errors
 
 
 # ── EPG cache (5 min TTL) ──────────────────────────────────────────────────
@@ -133,6 +198,7 @@ async def page_subscriptions(request: Request):
         "page": "subscriptions",
         "subscriptions": cfg.get("subscriptions", []),
         "default_lead": cfg.get("default_lead_time_minutes", 30),
+        "enabled_channels": _enabled_channels(cfg),
     })
 
 
@@ -168,6 +234,7 @@ async def partial_matches(request: Request):
         espn_states = {}
     return templates.TemplateResponse(request, "partials/matches.html", {
         "grouped": grouped, "error": error, "espn_states": espn_states,
+        "notification_template": _notif_template(cfg),
     })
 
 
@@ -217,6 +284,7 @@ async def partial_subscriptions(request: Request):
     cfg = load_config()
     return templates.TemplateResponse(request, "partials/sub_rows.html", {
         "subscriptions": cfg.get("subscriptions", []),
+        "enabled_channels": _enabled_channels(cfg),
     })
 
 
@@ -233,6 +301,7 @@ def _build_sub_entry(
     label: str, sport: str, team: str, keyword: str, channel: str,
     title_pattern: str, subtitle_pattern: str, desc_pattern: str,
     exclude: str, require_sport: str, lead_time_minutes: str,
+    notify_channels: str = "",
 ) -> dict:
     entry: dict = {"label": label.strip()}
     for key, val in [("sport", sport), ("team", team), ("keyword", keyword),
@@ -250,12 +319,19 @@ def _build_sub_entry(
             entry["lead_time_minutes"] = int(lead_time_minutes)
         except ValueError:
             pass
+    ch_list = [c.strip() for c in notify_channels.split(",") if c.strip()]
+    if ch_list:
+        entry["notify_channels"] = ch_list
     return entry
 
 
-def _sub_response(request: Request, subs: list, toast: str) -> Response:
-    resp = templates.TemplateResponse(request, "partials/sub_rows.html",
-                                      {"subscriptions": subs})
+def _sub_response(request: Request, subs: list, toast: str, cfg: Optional[dict] = None) -> Response:
+    if cfg is None:
+        cfg = load_config()
+    resp = templates.TemplateResponse(request, "partials/sub_rows.html", {
+        "subscriptions": subs,
+        "enabled_channels": _enabled_channels(cfg),
+    })
     resp.headers["X-Toast"] = toast
     return resp
 
@@ -268,15 +344,15 @@ async def add_subscription(
     channel: str = Form(""), title_pattern: str = Form(""),
     subtitle_pattern: str = Form(""), desc_pattern: str = Form(""),
     exclude: str = Form(""), require_sport: str = Form(""),
-    lead_time_minutes: str = Form(""),
+    lead_time_minutes: str = Form(""), notify_channels: str = Form(""),
 ):
     cfg = load_config()
     subs = cfg.setdefault("subscriptions", [])
     subs.append(_build_sub_entry(label, sport, team, keyword, channel,
                                  title_pattern, subtitle_pattern, desc_pattern,
-                                 exclude, require_sport, lead_time_minutes))
+                                 exclude, require_sport, lead_time_minutes, notify_channels))
     save_config(cfg)
-    return _sub_response(request, subs, f"Added: {label}")
+    return _sub_response(request, subs, f"Added: {label}", cfg)
 
 
 @app.post("/partial/subscriptions/bulk", response_class=HTMLResponse)
@@ -292,7 +368,7 @@ async def bulk_delete_subscriptions(request: Request, indices: str = Form("")):
     if count:
         save_config(cfg)
     noun = "subscription" if count == 1 else "subscriptions"
-    return _sub_response(request, subs, f"Removed {count} {noun}")
+    return _sub_response(request, subs, f"Removed {count} {noun}", cfg)
 
 
 @app.post("/partial/subscriptions/{idx}", response_class=HTMLResponse)
@@ -303,16 +379,16 @@ async def update_subscription(
     channel: str = Form(""), title_pattern: str = Form(""),
     subtitle_pattern: str = Form(""), desc_pattern: str = Form(""),
     exclude: str = Form(""), require_sport: str = Form(""),
-    lead_time_minutes: str = Form(""),
+    lead_time_minutes: str = Form(""), notify_channels: str = Form(""),
 ):
     cfg = load_config()
     subs = cfg.get("subscriptions", [])
     if 0 <= idx < len(subs):
         subs[idx] = _build_sub_entry(label, sport, team, keyword, channel,
                                      title_pattern, subtitle_pattern, desc_pattern,
-                                     exclude, require_sport, lead_time_minutes)
+                                     exclude, require_sport, lead_time_minutes, notify_channels)
         save_config(cfg)
-    return _sub_response(request, subs, f"Saved: {label}")
+    return _sub_response(request, subs, f"Saved: {label}", cfg)
 
 
 @app.delete("/partial/subscriptions/{idx}", response_class=HTMLResponse)
@@ -323,7 +399,7 @@ async def delete_subscription(request: Request, idx: int):
     if 0 <= idx < len(subs):
         label = subs.pop(idx).get("label", "")
         save_config(cfg)
-    return _sub_response(request, subs, f"Removed: {label}")
+    return _sub_response(request, subs, f"Removed: {label}", cfg)
 
 
 # ── API probe ─────────────────────────────────────────────────────────────
@@ -393,6 +469,14 @@ async def save_settings(request: Request):
         pass
     cfg["espn_verify"] = form.get("espn_verify") == "on"
 
+    tpl = cfg.setdefault("notification_template", {})
+    tpl_title = form.get("notif_title_tpl", "").strip()
+    tpl_body = form.get("notif_body_tpl", "").strip()
+    if tpl_title:
+        tpl["title"] = tpl_title
+    if tpl_body:
+        tpl["body"] = tpl_body
+
     n = cfg.setdefault("notifications", {})
 
     # Telegram
@@ -457,40 +541,37 @@ async def save_settings(request: Request):
 @app.post("/action/test/{channel}")
 async def test_notification(channel: str):
     cfg = load_config()
-    title = "EPG Notifier — Test"
-    body = "This is a test notification from EPG Notifier."
-    try:
-        n = cfg.get("notifications", {})
-        if channel == "telegram":
-            from notifiers.telegram import TelegramNotifier
-            t = n["telegram"]
-            TelegramNotifier(t["bot_token"], str(t["chat_id"])).send(title, body)
-        elif channel == "pushover":
-            from notifiers.pushover import PushoverNotifier
-            p = n["pushover"]
-            PushoverNotifier(p["app_token"], p["user_key"]).send(title, body)
-        elif channel == "ntfy":
-            from notifiers.ntfy import NtfyNotifier
-            nt = n["ntfy"]
-            NtfyNotifier(nt["url"], nt["topic"], nt.get("token", "")).send(title, body)
-        elif channel == "discord":
-            from notifiers.discord import DiscordNotifier
-            DiscordNotifier(n["discord"]["webhook_url"]).send(title, body)
-        elif channel == "smtp":
-            from notifiers.smtp import SmtpNotifier
-            s = n["smtp"]
-            SmtpNotifier(
-                s["host"], s["port"], s["username"], s["password"],
-                s["from_addr"], s["to_addrs"], s.get("use_tls", True),
-            ).send(title, body)
+    errors = _send_to_channels(
+        "EPG Notifier — Test",
+        "This is a test notification from EPG Notifier.",
+        [channel], cfg,
+    )
+    if errors:
+        msg = errors[0].split(": ", 1)[-1]
         return HTMLResponse(
-            content='<span class="text-green-400 text-xs font-medium">✓ Sent</span>',
-        )
-    except Exception as exc:
-        return HTMLResponse(
-            content=f'<span class="text-red-400 text-xs" title="{html.escape(str(exc))}">✕ {html.escape(str(exc)[:60])}{"…" if len(str(exc)) > 60 else ""}</span>',
+            content=f'<span class="text-red-400 text-xs" title="{html.escape(msg)}">✕ {html.escape(msg[:60])}{"…" if len(msg) > 60 else ""}</span>',
             status_code=400,
         )
+    return HTMLResponse(content='<span class="text-green-400 text-xs font-medium">✓ Sent</span>')
+
+
+@app.post("/action/preview-send")
+async def preview_send(
+    notif_title: str = Form(...),
+    notif_body: str = Form(...),
+    sub_label: str = Form(""),
+):
+    cfg = load_config()
+    sub_channels: list[str] = []
+    for s in cfg.get("subscriptions", []):
+        if s.get("label") == sub_label:
+            sub_channels = s.get("notify_channels", [])
+            break
+    errors = _send_to_channels(notif_title, notif_body, sub_channels, cfg)
+    if errors:
+        return Response(status_code=400, headers={"X-Toast": f"Send failed: {errors[0]}"})
+    via = ", ".join(sub_channels) if sub_channels else "all enabled channels"
+    return Response(headers={"X-Toast": f"Sent via {via}"})
 
 
 # ── Manual scan ────────────────────────────────────────────────────────────
@@ -503,9 +584,9 @@ async def manual_scan(background_tasks: BackgroundTasks):
 
 def _do_scan() -> None:
     try:
-        from main import build_notifiers, run_scan
+        from main import build_notifiers_map, run_scan
         cfg = load_config()
-        run_scan(cfg, build_notifiers(cfg), NotificationStore(str(DB_PATH)), dry_run=False)
+        run_scan(cfg, build_notifiers_map(cfg), NotificationStore(str(DB_PATH)), dry_run=False)
         bust_cache()
     except Exception as exc:
         log.error("Scan error: %s", exc)

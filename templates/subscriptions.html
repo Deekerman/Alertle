@@ -92,6 +92,22 @@
               <input name="exclude" class="field" placeholder="e.g. Women's, U20, highlights, replay" />
               <p class="form-hint">Comma-separated — any match blocks the notification</p>
             </div>
+            {% if enabled_channels %}
+            <div class="mb-4" x-data="{ sel: [] }">
+              <label class="form-label">Notify via <span class="text-muted font-normal">(leave all unchecked = all enabled channels)</span></label>
+              <div class="flex flex-wrap gap-4">
+                {% for ch_key, ch_label in enabled_channels %}
+                <label class="flex items-center gap-1.5 text-xs cursor-pointer select-none">
+                  <input type="checkbox" class="toggle"
+                    :checked="sel.includes('{{ ch_key }}')"
+                    @change="$event.target.checked ? sel.push('{{ ch_key }}') : sel.splice(sel.indexOf('{{ ch_key }}'), 1)" />
+                  {{ ch_label }}
+                </label>
+                {% endfor %}
+              </div>
+              <input type="hidden" name="notify_channels" :value="sel.join(',')" />
+            </div>
+            {% endif %}
             <div class="flex items-center justify-between pt-2">
               <label class="flex items-center gap-2.5 cursor-pointer select-none">
                 <input type="checkbox" name="require_sport" value="on" class="toggle" />
@@ -231,6 +247,24 @@
           <p class="form-hint mt-0.5">Blocks movies &amp; shows when using keyword/channel filter</p>
         </label>
       </div>
+      {% if enabled_channels %}
+      <div>
+        <label class="form-label">Notify via <span class="text-muted font-normal">(unchecked = all)</span></label>
+        <div class="flex flex-wrap gap-4">
+          {% for ch_key, ch_label in enabled_channels %}
+          <label class="flex items-center gap-1.5 text-xs cursor-pointer select-none">
+            <input type="checkbox" class="toggle"
+              :checked="$store.subEdit.notify_channels.includes('{{ ch_key }}')"
+              @change="$event.target.checked
+                ? $store.subEdit.notify_channels.push('{{ ch_key }}')
+                : $store.subEdit.notify_channels.splice($store.subEdit.notify_channels.indexOf('{{ ch_key }}'), 1)" />
+            {{ ch_label }}
+          </label>
+          {% endfor %}
+        </div>
+        <input type="hidden" name="notify_channels" :value="$store.subEdit.notify_channels.join(',')" />
+      </div>
+      {% endif %}
       <div class="pt-2 pb-4">
         <button type="submit" class="btn-primary w-full justify-center">Save changes</button>
       </div>

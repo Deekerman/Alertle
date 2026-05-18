@@ -80,6 +80,7 @@ class Subscription:
     exclude: list[str] = field(default_factory=list)
     require_sport: bool = False
     lead_time_minutes: int = 30
+    notify_channels: list[str] = field(default_factory=list)  # empty = all enabled
     _title_re: Optional[re.Pattern] = field(default=None, init=False, repr=False, compare=False)
     _subtitle_re: Optional[re.Pattern] = field(default=None, init=False, repr=False, compare=False)
     _desc_re: Optional[re.Pattern] = field(default=None, init=False, repr=False, compare=False)
@@ -193,6 +194,7 @@ def build_subscriptions(raw: list[dict], default_lead_time: int) -> list[Subscri
             exclude=exclude_raw,
             require_sport=bool(entry.get("require_sport", False)),
             lead_time_minutes=entry.get("lead_time_minutes", default_lead_time),
+            notify_channels=entry.get("notify_channels", []),
         ))
     return subs
 

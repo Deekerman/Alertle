@@ -20,6 +20,13 @@ default_lead_time_minutes: 30
 # suppressed. Falls back to notifying when ESPN has no data for the sport.
 espn_verify: false
 
+# ── Notification message templates ──────────────────────────────────────────
+# Available variables: {rule} {title} {subtitle} {time} {date} {channels}
+#                      {duration} {description}
+notification_template:
+  title: "[{rule}] {title}"
+  body: "Time    : {time}  ({duration} min)\nChannel : {channels}\n{description}"
+
 # ── Notification channels ───────────────────────────────────────────────────
 # Leave a section empty / comment it out to disable that channel.
 

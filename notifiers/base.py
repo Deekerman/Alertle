@@ -2,33 +2,48 @@
 
 from __future__ import annotations
 
+import re
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from matcher import GroupedMatch
 
+DEFAULT_TITLE_TEMPLATE = "[{rule}] {title}"
+DEFAULT_BODY_TEMPLATE = "Time    : {time}  ({duration} min)\nChannel : {channels}\n{description}"
 
-def format_grouped_message(g: "GroupedMatch") -> tuple[str, str]:
-    """Return (notification_title, body) for a grouped match."""
+_AVAILABLE_VARS = (
+    "{rule}", "{title}", "{subtitle}", "{time}", "{date}",
+    "{channels}", "{duration}", "{description}",
+)
+
+
+def build_preview_vars(g: "GroupedMatch") -> dict:
     local_start = g.start.astimezone()
-    time_str = local_start.strftime("%a %b %-d  %-I:%M %p")
-    duration_min = int((g.stop - g.start).total_seconds() / 60)
+    ch_parts = [f"{name} ({num})" if num else name for num, name in g.channels]
+    return {
+        "title": g.title,
+        "subtitle": g.subtitle or "",
+        "time": local_start.strftime("%a %b %-d  %-I:%M %p"),
+        "date": local_start.strftime("%a %b %-d"),
+        "channels": ", ".join(ch_parts),
+        "rule": g.subscription.label,
+        "duration": str(int((g.stop - g.start).total_seconds() / 60)),
+        "description": g.description or "",
+    }
 
-    notif_title = f"[{g.subscription.label}] {g.title}"
 
-    ch_parts: list[str] = []
-    for num, name in g.channels:
-        ch_parts.append(f"{name} ({num})" if num else name)
+def render_template(template: str, vars_: dict) -> str:
+    return re.sub(r"\{(\w+)\}", lambda m: vars_.get(m.group(1), m.group(0)), template)
 
-    lines = [
-        f"Time    : {time_str}  ({duration_min} min)",
-        f"Channel : {', '.join(ch_parts)}",
-    ]
-    if g.description:
-        lines.append(f"\n{g.description}")
 
-    return notif_title, "\n".join(lines)
+def format_grouped_message(
+    g: "GroupedMatch",
+    title_tpl: str = DEFAULT_TITLE_TEMPLATE,
+    body_tpl: str = DEFAULT_BODY_TEMPLATE,
+) -> tuple[str, str]:
+    vars_ = build_preview_vars(g)
+    return render_template(title_tpl, vars_), render_template(body_tpl, vars_).rstrip()
 
 
 class BaseNotifier(ABC):

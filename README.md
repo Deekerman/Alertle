@@ -1,4 +1,9 @@
 # 🐢 Alertle
+
+<p align="center">
+  <img src="alertle_turtle.png" alt="Alertle Turtle" width="300"/>
+</p>
+
 ### *He's slow. Your alerts aren't.*
 
 Alertle is a self-hosted sports notification app that connects to your [Dispatcharr](https://github.com/Dispatcharr/Dispatcharr) instance, scans your EPG for the week ahead, and fires off alerts when something you care about is on — before you miss the puck drop.

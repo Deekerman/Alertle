@@ -176,13 +176,17 @@ def main():
         return
 
     if args.daemon:
-        interval = cfg.get("poll_interval_seconds", 3600)
-        log.info("Daemon mode: polling every %d seconds", interval)
+        log.info("Daemon mode started")
         while True:
             try:
+                cfg = load_config(args.config)
+                notifiers_map = build_notifiers_map(cfg)
+                interval = cfg.get("poll_interval_seconds", 3600)
                 run_scan(cfg, notifiers_map, store, dry_run=args.dry_run)
             except Exception as exc:
                 log.error("Scan error: %s", exc)
+                interval = 60
+            log.info("Next scan in %ds", interval)
             time.sleep(interval)
     else:
         run_scan(cfg, notifiers_map, store, dry_run=args.dry_run)

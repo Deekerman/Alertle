@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import html
 import json
 import logging
@@ -628,6 +629,23 @@ def _do_scan() -> None:
         bust_cache()
     except Exception as exc:
         log.error("Scan error: %s", exc)
+
+
+# ── Background auto-scanner ───────────────────────────────────────────────
+
+async def _auto_scan_loop():
+    await asyncio.sleep(15)  # brief delay to let the server finish starting up
+    while True:
+        cfg = load_config()
+        interval = cfg.get("poll_interval_seconds", 3600)
+        log.info("Auto-scan triggered (interval: %ds)", interval)
+        _do_scan()
+        await asyncio.sleep(interval)
+
+
+@app.on_event("startup")
+async def start_auto_scanner():
+    asyncio.create_task(_auto_scan_loop())
 
 
 # ── Entry point ────────────────────────────────────────────────────────────

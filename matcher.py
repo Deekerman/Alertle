@@ -1,8 +1,8 @@
 """Match EPG programmes against user subscriptions."""
 
+import concurrent.futures
 import logging
 import re
-import signal
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Optional
@@ -68,20 +68,20 @@ def filter_categories(cats: list[str]) -> list[str]:
     return result
 
 
+_regex_pool = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="regex")
+
+
 def _safe_match(pattern: re.Pattern, text: str, label: str) -> bool:
-    """Run regex with a 1-second timeout to guard against ReDoS."""
-    def _handler(signum, frame):
-        raise TimeoutError
-    old = signal.signal(signal.SIGALRM, _handler)
-    signal.alarm(1)
+    """Run regex in a worker thread with a 1-second timeout to guard against ReDoS."""
+    future = _regex_pool.submit(pattern.search, text)
     try:
-        return bool(pattern.search(text))
-    except TimeoutError:
+        return bool(future.result(timeout=1.0))
+    except concurrent.futures.TimeoutError:
         log.warning("Regex timeout in subscription '%s' — pattern may cause ReDoS", label)
         return False
-    finally:
-        signal.alarm(0)
-        signal.signal(signal.SIGALRM, old)
+    except Exception as exc:
+        log.warning("Regex error in subscription '%s': %s", label, exc)
+        return False
 
 
 @dataclass

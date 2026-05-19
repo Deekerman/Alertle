@@ -87,9 +87,9 @@ def build_notifiers(cfg: dict) -> list[BaseNotifier]:
 # ── Core scan logic ────────────────────────────────────────────────────────
 
 def run_scan(cfg: dict, notifiers_map: dict[str, BaseNotifier], store: NotificationStore, dry_run: bool):
-    dispatcharr = cfg["dispatcharr"]
+    dispatcharr = cfg.get("dispatcharr", {})
     client = DispatcharrClient(
-        dispatcharr["url"],
+        dispatcharr.get("url", ""),
         dispatcharr.get("token", ""),
         dispatcharr.get("xmltv_url", ""),
     )

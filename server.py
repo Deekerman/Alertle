@@ -225,8 +225,8 @@ EPG_CACHE_TTL = 300
 
 
 def make_client(cfg: dict) -> DispatcharrClient:
-    d = cfg["dispatcharr"]
-    return DispatcharrClient(d["url"], d.get("token", ""), d.get("xmltv_url", ""))
+    d = cfg.get("dispatcharr", {})
+    return DispatcharrClient(d.get("url", ""), d.get("token", ""), d.get("xmltv_url", ""))
 
 
 def get_programmes(cfg: dict) -> list[Programme]:

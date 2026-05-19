@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from matcher import GroupedMatch
 
 DEFAULT_TITLE_TEMPLATE = "[{rule}] {title}"
-DEFAULT_BODY_TEMPLATE = "Time    : {time}  ({duration} min)\nChannel : {channels}\n{description}"
+DEFAULT_BODY_TEMPLATE = "{description}\nTime: {time}\nChannel(s):\n{channels}"
 
 _AVAILABLE_VARS = (
     "{rule}", "{title}", "{subtitle}", "{time}", "{date}",

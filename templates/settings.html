@@ -95,8 +95,8 @@
       </div>
       <div>
         <label class="form-label">Body</label>
-        <textarea name="notif_body_tpl" class="field font-mono" rows="3"
-          >{{ tpl.get('body', 'Time    : {time}  ({duration} min)\nChannel : {channels}\n{description}') }}</textarea>
+        <textarea name="notif_body_tpl" class="field font-mono" rows="4"
+          >{{ tpl.get('body', '{description}\nTime: {time}\nChannel(s):\n{channels}') }}</textarea>
       </div>
       <div class="flex items-center justify-between py-2">
         <div>

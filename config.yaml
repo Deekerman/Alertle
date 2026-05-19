@@ -8,6 +8,9 @@ dispatcharr:
 # How often to poll when running in --daemon mode (seconds)
 poll_interval_seconds: 300
 
+# How long to cache the fetched EPG before re-downloading (hours). 0 = no cache.
+epg_cache_hours: 1
+
 # How many minutes before event start to send the notification
 # Can be overridden per subscription
 default_lead_time_minutes: 30

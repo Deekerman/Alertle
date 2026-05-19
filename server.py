@@ -218,10 +218,9 @@ def _send_to_channels_legacy(title: str, body: str, channels: list[str], cfg: di
     return errors
 
 
-# ── EPG cache (5 min TTL) ──────────────────────────────────────────────────
+# ── EPG cache ─────────────────────────────────────────────────────────────
 
 _epg_cache: Optional[tuple[float, list[Programme]]] = None
-EPG_CACHE_TTL = 300
 
 
 def make_client(cfg: dict) -> DispatcharrClient:
@@ -232,7 +231,8 @@ def make_client(cfg: dict) -> DispatcharrClient:
 def get_programmes(cfg: dict) -> list[Programme]:
     global _epg_cache
     now = time.monotonic()
-    if _epg_cache and (now - _epg_cache[0]) < EPG_CACHE_TTL:
+    cache_ttl = cfg.get("epg_cache_hours", 1) * 3600
+    if _epg_cache and (now - _epg_cache[0]) < cache_ttl:
         return _epg_cache[1]
     d = cfg["dispatcharr"]
     client = make_client(cfg)
@@ -527,6 +527,10 @@ async def save_settings(request: Request):
         pass
     try:
         cfg["poll_interval_seconds"] = max(60, int(form.get("poll_interval_seconds", 300)))
+    except ValueError:
+        pass
+    try:
+        cfg["epg_cache_hours"] = max(0, float(form.get("epg_cache_hours", 1)))
     except ValueError:
         pass
     cfg["espn_verify"] = form.get("espn_verify") == "on"

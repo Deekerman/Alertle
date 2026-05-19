@@ -37,6 +37,12 @@
                  value="{{ cfg.get('poll_interval_seconds', 300) }}" />
           <p class="form-hint">Default: 300 (5 min)</p>
         </div>
+        <div>
+          <label class="form-label">EPG cache (hours)</label>
+          <input name="epg_cache_hours" class="field" type="number" min="0" step="0.5"
+                 value="{{ cfg.get('epg_cache_hours', 1) }}" />
+          <p class="form-hint">How long to reuse a fetched EPG before re-downloading. 0 = no cache.</p>
+        </div>
       </div>
     </section>
 

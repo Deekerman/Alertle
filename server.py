@@ -504,47 +504,6 @@ async def delete_subscription(request: Request, idx: int):
     return _sub_response(request, subs, f"Removed: {label}", cfg)
 
 
-# ── API probe ─────────────────────────────────────────────────────────────
-
-@app.get("/action/probe", response_class=HTMLResponse)
-async def probe_dispatcharr(request: Request):
-    cfg = load_config()
-    d = cfg.get("dispatcharr", {})
-    if not d.get("url"):
-        return HTMLResponse('<p class="text-yellow-400 text-sm">No URL configured yet.</p>')
-    try:
-        client = make_client(cfg)
-        results = client.probe_api()
-    except Exception as exc:
-        return HTMLResponse(f'<p class="text-red-400 text-sm">Probe failed: {exc}</p>')
-
-    rows = ""
-    for key, info in results.items():
-        status = info.get("status")
-        if status == 200:
-            colour = "text-green-400"
-        elif status is None:
-            colour = "text-red-400"
-        elif status in (401, 403):
-            colour = "text-yellow-400"
-        else:
-            colour = "text-gray-500"
-
-        detail = html.escape((info.get("snippet") or info.get("error") or "")[:140])
-
-        rows += (
-            f'<tr class="border-b border-border">'
-            f'<td class="py-1.5 pr-3 font-mono text-xs text-gray-300 whitespace-nowrap">{html.escape(key)}</td>'
-            f'<td class="py-1.5 pr-3 text-xs {colour} whitespace-nowrap">{html.escape(str(status or "err"))}</td>'
-            f'<td class="py-1.5 text-xs text-gray-500 break-all">{detail}</td>'
-            f'</tr>'
-        )
-
-    return HTMLResponse(
-        f'<div class="overflow-x-auto"><table class="w-full mt-3"><tbody>{rows}</tbody></table></div>'
-    )
-
-
 # ── Settings ───────────────────────────────────────────────────────────────
 
 @app.post("/action/settings")
@@ -554,11 +513,9 @@ async def save_settings(request: Request):
 
     d = cfg.setdefault("dispatcharr", {})
     try:
-        d["url"] = _validate_url(form.get("dispatcharr_url", "").strip())
         d["xmltv_url"] = _validate_url(form.get("xmltv_url", "").strip())
     except ValueError as exc:
         return Response(status_code=400, headers={"X-Toast": str(exc)})
-    d["token"] = form.get("dispatcharr_token", "").strip()
     try:
         d["lookahead_days"] = int(form.get("lookahead_days", 7))
     except ValueError:

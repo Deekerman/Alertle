@@ -112,6 +112,7 @@ def _preview_vars_filter(g) -> dict:
     vars_["notify_channels"] = ", ".join(channel_names)
     vars_["sub_notif_title_template"] = g.subscription.notif_title_template or ""
     vars_["sub_notif_body_template"] = g.subscription.notif_body_template or ""
+    vars_["is_replay"] = g.is_replay
     return vars_
 
 
@@ -572,6 +573,7 @@ async def save_settings(request: Request):
     except ValueError:
         pass
     cfg["espn_verify"] = form.get("espn_verify") == "on"
+    cfg["espn_notify_replays"] = form.get("espn_notify_replays") == "on"
 
     tpl = cfg.setdefault("notification_template", {})
     tpl_title = form.get("notif_title_tpl", "").strip()

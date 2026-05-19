@@ -131,6 +131,8 @@ def run_scan(cfg: dict, notifiers_map: dict[str, BaseNotifier], store: Notificat
         body_tpl = g.subscription.notif_body_template or notif_tpl.get("body", DEFAULT_BODY_TEMPLATE)
         show_nums = notif_tpl.get("show_channel_nums", False)
         title, body = format_grouped_message(g, title_tpl, body_tpl, show_channel_nums=show_nums)
+        if g.is_replay:
+            title = f"[REPLAY] {title}"
 
         if dry_run:
             print(f"\n{'─'*60}")

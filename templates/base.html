@@ -42,10 +42,16 @@
     .htmx-request.htmx-indicator { opacity: 1; }
 
     .field {
-      @apply w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-gray-100
-             placeholder-muted focus:outline-none focus:border-indigo-500 focus:ring-1
-             focus:ring-indigo-500 transition-colors;
+      @apply w-full rounded-lg px-3.5 py-2.5 text-sm text-white
+             focus:outline-none transition-colors;
+      background: #141e30;
+      border: 1px solid #2d4060;
     }
+    .field:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+    }
+    .field::placeholder { color: #4d6280; }
     select.field { @apply cursor-pointer; }
 
     .btn-primary {
@@ -154,8 +160,11 @@
             body:  data.sub_notif_body_template  || global.body,
           };
           const render = (t, v) => t.replace(/\{(\w+)\}/g, (_, k) => v[k] ?? '');
-          this.notifTitle = render(tpl.title, data);
+          let title = render(tpl.title, data);
+          if (data.is_replay) title = '[REPLAY] ' + title;
+          this.notifTitle = title;
           this.notifBody  = render(tpl.body,  data).trimEnd();
+          this.isReplay   = !!data.is_replay;
           this.notifVia   = data.notify_channels || '';
           this.subLabel   = data.rule;
           this.open = true;

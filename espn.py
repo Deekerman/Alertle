@@ -220,16 +220,27 @@ def get_espn_state(epg_title: str, epg_start: datetime, categories: list[str]) -
 
 
 def filter_replays(grouped: list, cfg: dict) -> list:
-    """Remove replay entries from a GroupedMatch list when espn_verify is enabled."""
+    """Filter/tag replay entries when espn_verify is enabled.
+
+    If espn_notify_replays is also true, replays are kept but flagged with
+    g.is_replay = True so callers can label the notification accordingly.
+    """
     if not cfg.get("espn_verify"):
         return grouped
 
+    notify_replays = cfg.get("espn_notify_replays", False)
     out = []
     for g in grouped:
         result = check_replay(g.title, g.start, g.categories)
         if result is True:
-            log.info("Skipping replay (ESPN): %s @ %s", g.title,
-                     g.start.astimezone().strftime("%-I:%M %p %a %b %-d"))
+            if notify_replays:
+                g.is_replay = True
+                out.append(g)
+                log.info("Replay (ESPN) — notifying with tag: %s @ %s", g.title,
+                         g.start.astimezone().strftime("%-I:%M %p %a %b %-d"))
+            else:
+                log.info("Skipping replay (ESPN): %s @ %s", g.title,
+                         g.start.astimezone().strftime("%-I:%M %p %a %b %-d"))
         else:
             out.append(g)
     return out

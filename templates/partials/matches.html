@@ -75,7 +75,7 @@
       {% set dur = ((g.stop - g.start).total_seconds() / 60)|int %}
       {% set espn_state = espn_states.get(g.group_uid) %}
       <tr class="border-b border-border/50 transition-all last:border-0 group event-row
-                 {{ 'bg-red-950/20' if espn_state == 'in' else '' }}"
+                 {{ 'bg-red-950/20' if espn_state == 'in' else ('bg-amber-950/10' if g.is_replay else '') }}"
           data-preview="{{ g|preview_vars|tojson|e }}">
         <td class="px-5 py-4 align-top">
           <p class="text-xs text-muted">{{ g.start.astimezone().strftime('%a %b %-d') }}</p>
@@ -84,6 +84,9 @@
         <td class="px-5 py-4 align-top">
           <div class="flex items-center gap-2">
             <p class="font-medium text-gray-100 leading-snug">{{ g.title }}</p>
+            {% if g.is_replay %}
+            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold tracking-wide bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0">REPLAY</span>
+            {% endif %}
             {% if espn_state == 'in' %}
             <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-bold tracking-wide bg-red-500/25 text-red-300 border border-red-500/30 shrink-0">
               <span class="relative flex h-1.5 w-1.5">

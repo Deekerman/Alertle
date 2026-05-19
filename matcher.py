@@ -193,6 +193,7 @@ class GroupedMatch:
     channels: list[tuple[str, str]]
     subscription: Subscription
     group_uid: str
+    is_replay: bool = False
 
 
 def build_subscriptions(raw: list[dict], default_lead_time: int) -> list[Subscription]:

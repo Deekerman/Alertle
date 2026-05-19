@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Alertle{% if title %} · {{ title }}{% endif %}</title>
+  <link rel="icon" type="image/png" href="/static/alertle_turtle.png" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -194,13 +195,8 @@
   <header class="h-14 shrink-0 bg-panel border-b border-border flex items-center px-6 gap-6 sticky top-0 z-30">
 
     <!-- Brand -->
-    <a href="/" class="flex items-center gap-2.5 shrink-0 mr-2">
-      <div class="w-7 h-7 rounded-lg border border-indigo-500/30 flex items-center justify-center shrink-0"
-           style="background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(79,70,229,0.12))">
-        <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M6 20.25h12m-7.5-3v3m3-3v3m-10.125-3h17.25c.621 0 1.125-.504 1.125-1.125V4.875c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125Z"/>
-        </svg>
-      </div>
+    <a href="/" class="flex items-center gap-2 shrink-0 mr-2">
+      <img src="/static/alertle_turtle.png" alt="Alertle" class="w-8 h-8 object-contain rounded-lg" />
       <p class="text-sm font-semibold text-white">Alertle</p>
     </a>
 

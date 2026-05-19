@@ -19,6 +19,7 @@ import yaml
 from fastapi import BackgroundTasks, FastAPI, Form, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 ROOT = Path(__file__).parent
@@ -96,6 +97,7 @@ class _SecurityHeaders(BaseHTTPMiddleware):
         return response
 
 app.add_middleware(_SecurityHeaders)
+app.mount("/static", StaticFiles(directory=str(ROOT / "static")), name="static")
 templates = Jinja2Templates(directory=str(ROOT / "templates"))
 templates.env.filters["tojson"] = lambda v: json.dumps(v)
 templates.env.filters["category_color"] = _category_color

@@ -72,9 +72,7 @@ Open **http://localhost:8888** — the Alertle Turtle will be waiting.
 
 ### 1. Connect to Dispatcharr
 
-- Enter your Dispatcharr URL (e.g. `http://192.168.1.50:9191`)
-- Add your API key — found in Dispatcharr under **Settings → API Keys**
-- Hit **Test connection** to make sure the turtle can reach it
+- Enter your Dispatcharr EPG URL
 
 ### 2. Configure Notifications
 

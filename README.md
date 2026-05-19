@@ -6,7 +6,7 @@
 
 ### *He's slow. Your alerts aren't.*
 
-Alertle is a self-hosted sports notification app that connects to your [Dispatcharr](https://github.com/Dispatcharr/Dispatcharr) instance, scans your EPG for the week ahead, and fires off alerts when something you care about is on — before you miss the puck drop.
+Alertle is a self-hosted sports notification app that scans your EPG for the week ahead, and fires off alerts when something you care about is on — before you miss the puck drop.
 
 ---
 
@@ -28,7 +28,6 @@ If it works, great. If something breaks, that's also the vibes. PRs are welcome.
 
 ## Features
 
-- 🔌 **Dispatcharr integration** — connects to your local instance via API key
 - 📅 **7-day EPG scanning** — always looking ahead so you don't have to
 - 🏒 **Flexible rules** — get notified by sport, team name, or specific program title
 - 🔔 **Multiple notification channels** — Discord, Telegram, and Pushover

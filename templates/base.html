@@ -207,6 +207,7 @@
     <a href="/" class="flex items-center gap-2 shrink-0 mr-2">
       <img src="/static/alertle_turtle.png" alt="Alertle" class="w-8 h-8 object-contain rounded-lg" />
       <p class="text-sm font-semibold text-white">Alertle</p>
+      {% if version %}<span class="text-[10px] text-muted/50 font-mono">v{{ version }}</span>{% endif %}
     </a>
 
     <!-- Nav links -->

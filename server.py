@@ -16,7 +16,7 @@ from typing import Optional
 
 import uvicorn
 import yaml
-from fastapi import BackgroundTasks, FastAPI, Form, Request, Response
+from fastapi import BackgroundTasks, FastAPI, File, Form, Request, Response, UploadFile
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -34,6 +34,8 @@ from storage import NotificationStore
 
 CONFIG_PATH = ROOT / "config.yaml"
 DB_PATH = ROOT / "alertle.db"
+_VERSION_FILE = ROOT / "VERSION"
+_VERSION = _VERSION_FILE.read_text().strip() if _VERSION_FILE.exists() else "dev"
 
 
 def _category_color(categories: list[str]) -> str:
@@ -256,12 +258,13 @@ async def page_dashboard(request: Request):
     return templates.TemplateResponse(request, "dashboard.html", {
         "page": "dashboard",
         "notification_template": _notif_template(cfg),
+        "version": _VERSION,
     })
 
 
 @app.get("/browse", response_class=HTMLResponse)
 async def page_browse(request: Request):
-    return templates.TemplateResponse(request, "browse.html", {"page": "browse"})
+    return templates.TemplateResponse(request, "browse.html", {"page": "browse", "version": _VERSION})
 
 
 @app.get("/subscriptions", response_class=HTMLResponse)
@@ -272,6 +275,7 @@ async def page_subscriptions(request: Request):
         "subscriptions": cfg.get("subscriptions", []),
         "default_lead": cfg.get("default_lead_time_minutes", 30),
         "endpoints": _get_endpoints(cfg),
+        "version": _VERSION,
     })
 
 
@@ -279,7 +283,7 @@ async def page_subscriptions(request: Request):
 async def page_settings(request: Request):
     cfg = load_config()
     return templates.TemplateResponse(request, "settings.html", {
-        "page": "settings", "cfg": cfg,
+        "page": "settings", "cfg": cfg, "version": _VERSION,
     })
 
 
@@ -662,6 +666,44 @@ async def preview_send(
         return Response(status_code=400, headers={"X-Toast": f"Send failed: {errors[0]}"})
     via = ", ".join(sub_channels) if sub_channels else "all enabled channels"
     return Response(headers={"X-Toast": f"Sent via {via}"})
+
+
+# ── Config backup / restore ───────────────────────────────────────────────
+
+@app.get("/action/config/export")
+async def config_export():
+    raw = CONFIG_PATH.read_bytes()
+    return Response(
+        content=raw,
+        media_type="application/x-yaml",
+        headers={"Content-Disposition": "attachment; filename=alertle-config.yaml"},
+    )
+
+
+def _merge_config(base: dict, overlay: dict) -> dict:
+    """Merge overlay onto base: overlay wins for every key it provides."""
+    result = dict(base)
+    for k, v in overlay.items():
+        result[k] = v
+    return result
+
+
+@app.post("/action/config/import")
+async def config_import(config_file: UploadFile = File(...)):
+    raw = await config_file.read()
+    try:
+        uploaded = yaml.safe_load(raw)
+    except yaml.YAMLError as exc:
+        return Response(status_code=400, headers={"X-Toast": f"Invalid YAML: {exc}"})
+    if not isinstance(uploaded, dict) or "subscriptions" not in uploaded:
+        return Response(
+            status_code=400,
+            headers={"X-Toast": "Invalid config: must contain a 'subscriptions' key"},
+        )
+    merged = _merge_config(load_config(), uploaded)
+    save_config(merged)
+    bust_cache()
+    return Response(headers={"X-Toast": "Config restored successfully"})
 
 
 # ── Manual scan ────────────────────────────────────────────────────────────

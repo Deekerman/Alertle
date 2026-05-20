@@ -54,7 +54,7 @@ _LEVEL_CLASS = {
 class _ScanLogHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:
         _scan_log.appendleft({
-            "ts":    self.formatTime(record, "%H:%M:%S"),
+            "ts":    datetime.fromtimestamp(record.created).strftime("%H:%M:%S"),
             "level": record.levelname,
             "name":  record.name.split(".")[-1],
             "msg":   record.getMessage(),

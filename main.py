@@ -105,7 +105,9 @@ def run_scan(cfg: dict, notifiers_map: dict[str, BaseNotifier], store: Notificat
         log.warning("No subscriptions configured — nothing to match.")
         return
 
-    log.info("Scanning EPG from %s to %s", now.strftime("%Y-%m-%d %H:%M"), window_end.strftime("%Y-%m-%d %H:%M"))
+    log.info("Scanning EPG from %s to %s | espn_verify=%s notify_replays=%s",
+             now.strftime("%Y-%m-%d %H:%M"), window_end.strftime("%Y-%m-%d %H:%M"),
+             cfg.get("espn_verify", False), cfg.get("espn_notify_replays", False))
     programmes = client.fetch_programmes(now, window_end)
 
     matches = find_matches(programmes, subscriptions)
@@ -114,16 +116,20 @@ def run_scan(cfg: dict, notifiers_map: dict[str, BaseNotifier], store: Notificat
 
     from espn import filter_replays
     grouped = filter_replays(grouped, cfg)
+    log.info("After replay filter: %d events remain", len(grouped))
 
     sent_count = 0
     for g in grouped:
         notify_at = g.start - timedelta(minutes=g.subscription.lead_time_minutes)
         if now < notify_at:
-            log.debug("Skipping '%s' — notify at %s UTC", g.title, notify_at.strftime("%Y-%m-%d %H:%M"))
+            mins_until = int((notify_at - now).total_seconds() / 60)
+            log.info("Too early: [%s] '%s' — notify in %dm (at %s)",
+                     g.subscription.label, g.title, mins_until,
+                     notify_at.astimezone().strftime("%-I:%M %p"))
             continue
 
         if store.already_sent(g.group_uid, g.subscription.label):
-            log.debug("Already notified: %s / %s", g.subscription.label, g.title)
+            log.info("Already sent: [%s] '%s'", g.subscription.label, g.title)
             continue
 
         notif_tpl = cfg.get("notification_template", {})
@@ -139,6 +145,7 @@ def run_scan(cfg: dict, notifiers_map: dict[str, BaseNotifier], store: Notificat
             print(f"[DRY RUN] {title}")
             print(body)
         else:
+            log.info("Sending notification: %s", title)
             _dispatch(notifiers_map, g.subscription.notify_channels, title, body)
             store.mark_sent(g.group_uid, g.subscription.label, now.isoformat())
             sent_count += 1

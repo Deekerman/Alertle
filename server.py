@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections import deque
 from contextlib import asynccontextmanager
 import html
 import json
@@ -36,6 +37,34 @@ CONFIG_PATH = ROOT / "config.yaml"
 DB_PATH = ROOT / "alertle.db"
 _VERSION_FILE = ROOT / "VERSION"
 _VERSION = _VERSION_FILE.read_text().strip() if _VERSION_FILE.exists() else "dev"
+
+# ── In-memory scan log ─────────────────────────────────────────────────────
+
+_scan_log: deque[dict] = deque(maxlen=300)
+
+_LEVEL_CLASS = {
+    "DEBUG":    "text-gray-500",
+    "INFO":     "text-gray-300",
+    "WARNING":  "text-amber-400",
+    "ERROR":    "text-red-400",
+    "CRITICAL": "text-red-500",
+}
+
+
+class _ScanLogHandler(logging.Handler):
+    def emit(self, record: logging.LogRecord) -> None:
+        _scan_log.appendleft({
+            "ts":    self.formatTime(record, "%H:%M:%S"),
+            "level": record.levelname,
+            "name":  record.name.split(".")[-1],
+            "msg":   record.getMessage(),
+        })
+
+
+_scan_handler = _ScanLogHandler()
+_scan_handler.setLevel(logging.INFO)
+for _log_name in ("main", "espn", "__main__"):
+    logging.getLogger(_log_name).addHandler(_scan_handler)
 
 
 def _category_color(categories: list[str]) -> str:
@@ -666,6 +695,33 @@ async def preview_send(
         return Response(status_code=400, headers={"X-Toast": f"Send failed: {errors[0]}"})
     via = ", ".join(sub_channels) if sub_channels else "all enabled channels"
     return Response(headers={"X-Toast": f"Sent via {via}"})
+
+
+# ── Scan log ──────────────────────────────────────────────────────────────
+
+@app.get("/partial/scan-log", response_class=HTMLResponse)
+async def partial_scan_log():
+    if not _scan_log:
+        return HTMLResponse(
+            '<p class="text-xs text-muted text-center py-6">No scan activity yet. '
+            'Run a scan to see log output here.</p>'
+        )
+    rows = []
+    for entry in _scan_log:
+        cls = _LEVEL_CLASS.get(entry["level"], "text-gray-300")
+        rows.append(
+            f'<tr class="border-b border-border/30 last:border-0">'
+            f'<td class="px-4 py-1.5 text-[10px] text-muted font-mono whitespace-nowrap">{html.escape(entry["ts"])}</td>'
+            f'<td class="px-2 py-1.5 text-[10px] text-muted/60 font-mono whitespace-nowrap">{html.escape(entry["name"])}</td>'
+            f'<td class="px-4 py-1.5 text-xs {cls} leading-relaxed">{html.escape(entry["msg"])}</td>'
+            f'</tr>'
+        )
+    body = "\n".join(rows)
+    return HTMLResponse(
+        f'<table class="w-full">'
+        f'<tbody>{"".join(rows)}</tbody>'
+        f'</table>'
+    )
 
 
 # ── Config backup / restore ───────────────────────────────────────────────

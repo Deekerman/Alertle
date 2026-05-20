@@ -142,6 +142,7 @@ def check_replay(epg_title: str, epg_start: datetime, categories: list[str]) -> 
 
     leagues = _leagues_for_categories(categories)
     if not leagues:
+        log.info("ESPN: no leagues mapped for categories %s — skipping check for '%s'", categories, epg_title)
         return None
 
     # Look back 14 days (replays can air weeks later) and forward 1 day
@@ -163,8 +164,8 @@ def check_replay(epg_title: str, epg_start: datetime, categories: list[str]) -> 
 
         # Live or upcoming game → definitely not a replay
         if closest["state"] in ("pre", "in"):
-            log.debug("LIVE '%s' | ESPN game %s state=%s", epg_title,
-                      closest["date"].strftime("%Y-%m-%d %H:%M"), closest["state"])
+            log.info("ESPN: LIVE '%s' | ESPN game %s state=%s", epg_title,
+                     closest["date"].strftime("%Y-%m-%d %H:%M"), closest["state"])
             return False
 
         if closest["state"] == "post" and closest["completed"]:
@@ -172,26 +173,28 @@ def check_replay(epg_title: str, epg_start: datetime, categories: list[str]) -> 
             # this is likely a real rematch (same teams on consecutive days) rather
             # than a replay of the earlier game — fail open.
             if abs(time_gap) > _REPLAY_WINDOW:
-                log.debug(
-                    "AMBIGUOUS '%s' | nearest ESPN game %s is %.0fh away (> %dh window) — allowing",
+                log.info(
+                    "ESPN: AMBIGUOUS '%s' | nearest game %s is %.0fh away (> %dh window) — allowing",
                     epg_title, closest["date"].strftime("%Y-%m-%d %H:%M"),
                     abs(time_gap.total_seconds()) / 3600, _REPLAY_WINDOW.seconds // 3600,
                 )
                 return None
 
             replay = time_gap > timedelta(hours=4)
-            log.debug(
-                "%s '%s' | ESPN game %s | EPG broadcast %s → %s",
+            log.info(
+                "ESPN: %s '%s' | game %s | EPG %s | gap %.1fh",
                 "REPLAY" if replay else "LIVE (same-night)",
                 epg_title,
                 closest["date"].strftime("%Y-%m-%d %H:%M"),
                 epg_start.strftime("%Y-%m-%d %H:%M"),
-                "replay" if replay else "live",
+                time_gap.total_seconds() / 3600,
             )
             return replay
 
+        log.info("ESPN: unknown state '%s' for '%s' — allowing", closest["state"], epg_title)
         return False  # Unknown state — fail open
 
+    log.info("ESPN: no matching event found for '%s' — allowing", epg_title)
     return None  # No ESPN match found — fail open (allow notification)
 
 
@@ -226,9 +229,11 @@ def filter_replays(grouped: list, cfg: dict) -> list:
     g.is_replay = True so callers can label the notification accordingly.
     """
     if not cfg.get("espn_verify"):
+        log.info("ESPN verify OFF — replay filter skipped (%d events pass through)", len(grouped))
         return grouped
 
     notify_replays = cfg.get("espn_notify_replays", False)
+    log.info("ESPN verify ON | notify_replays=%s | checking %d events", notify_replays, len(grouped))
     out = []
     for g in grouped:
         result = check_replay(g.title, g.start, g.categories)
@@ -236,10 +241,10 @@ def filter_replays(grouped: list, cfg: dict) -> list:
             if notify_replays:
                 g.is_replay = True
                 out.append(g)
-                log.info("Replay (ESPN) — notifying with tag: %s @ %s", g.title,
+                log.info("Replay — notifying with [REPLAY] tag: %s @ %s", g.title,
                          g.start.astimezone().strftime("%-I:%M %p %a %b %-d"))
             else:
-                log.info("Skipping replay (ESPN): %s @ %s", g.title,
+                log.info("Replay — suppressing notification: %s @ %s", g.title,
                          g.start.astimezone().strftime("%-I:%M %p %a %b %-d"))
         else:
             out.append(g)

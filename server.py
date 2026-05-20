@@ -63,7 +63,7 @@ class _ScanLogHandler(logging.Handler):
 
 _scan_handler = _ScanLogHandler()
 _scan_handler.setLevel(logging.INFO)
-for _log_name in ("main", "espn", "__main__"):
+for _log_name in ("main", "espn", "__main__", "server"):
     logging.getLogger(_log_name).addHandler(_scan_handler)
 
 

@@ -638,6 +638,10 @@ async def save_settings(request: Request):
         cfg["epg_cache_hours"] = max(0, float(form.get("epg_cache_hours", 1)))
     except ValueError:
         pass
+    try:
+        cfg["group_window_minutes"] = max(0, int(form.get("group_window_minutes", 20)))
+    except ValueError:
+        pass
     cfg["espn_verify"] = form.get("espn_verify") == "on"
     cfg["espn_notify_replays"] = form.get("espn_notify_replays") == "on"
     cfg["desc_dedup"] = form.get("desc_dedup") == "on"

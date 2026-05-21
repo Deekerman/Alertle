@@ -248,6 +248,36 @@ def get_espn_state(epg_title: str, epg_start: datetime, categories: list[str]) -
     return None
 
 
+def get_espn_game_time(
+    epg_title: str, epg_start: datetime, categories: list[str],
+    espn_sport: Optional[str] = None, espn_league: Optional[str] = None,
+    espn_team: Optional[str] = None,
+) -> Optional[datetime]:
+    """Return the ESPN-verified game start time for the closest matched event, or None.
+    Results are served from the same TTL cache as check_replay(), so no extra API calls."""
+    if espn_sport and espn_league:
+        leagues = [(espn_sport, espn_league)]
+    else:
+        leagues = _leagues_for_categories(categories)
+    if not leagues:
+        return None
+
+    search_from = epg_start - timedelta(days=1)
+    search_to   = epg_start + timedelta(days=1)
+
+    for sport, league in leagues:
+        events = _fetch_events(sport, league, search_from, search_to)
+        if espn_team:
+            matched = [ev for ev in events if any(espn_team.lower() in c.lower() for c in ev["competitors"])]
+        else:
+            matched = [ev for ev in events if _matches_event(epg_title, ev["name"], ev["competitors"])]
+        if matched:
+            closest = min(matched, key=lambda ev: abs((epg_start - ev["date"]).total_seconds()))
+            return closest["date"]
+
+    return None
+
+
 def filter_replays(grouped: list, cfg: dict) -> list:
     """Filter/tag replay entries when espn_verify is enabled.
 

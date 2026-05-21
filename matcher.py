@@ -202,6 +202,7 @@ class GroupedMatch:
     subscription: Subscription
     group_uid: str
     is_replay: bool = False
+    espn_start: Optional[object] = None
 
 
 def build_subscriptions(raw: list[dict], default_lead_time: int) -> list[Subscription]:
@@ -244,8 +245,10 @@ def find_matches(programmes: list[Programme], subscriptions: list[Subscription])
     return matches
 
 
-def group_matches(matches: list[Match]) -> list[GroupedMatch]:
-    """Collapse matches for the same event (same start + related title) into one GroupedMatch."""
+def group_matches(matches: list[Match], grace_window_minutes: int = 20) -> list[GroupedMatch]:
+    """Collapse matches for the same event (same start ± grace window + related title) into one GroupedMatch."""
+    grace_secs = grace_window_minutes * 60
+
     exact: dict[tuple, list[Match]] = defaultdict(list)
     for m in matches:
         key = (m.programme.title.lower(), m.programme.start, m.subscription.label)
@@ -254,14 +257,14 @@ def group_matches(matches: list[Match]) -> list[GroupedMatch]:
     merged: list[list[Match]] = []
     for ms in exact.values():
         rep = ms[0]
-        start_min = rep.programme.start.replace(second=0, microsecond=0)
         sub_label = rep.subscription.label
         placed = False
         for group in merged:
             g_rep = group[0]
+            time_diff = abs((g_rep.programme.start - rep.programme.start).total_seconds())
             if (
                 g_rep.subscription.label == sub_label
-                and g_rep.programme.start.replace(second=0, microsecond=0) == start_min
+                and time_diff <= grace_secs
                 and _titles_related(g_rep.programme.title, rep.programme.title)
             ):
                 group.extend(ms)
@@ -272,24 +275,25 @@ def group_matches(matches: list[Match]) -> list[GroupedMatch]:
 
     grouped: list[GroupedMatch] = []
     for ms in merged:
-        rep = ms[0].programme
         main_title = min((m.programme.title for m in ms), key=len)
+        earliest_start = min(m.programme.start for m in ms)
+        rep = min(ms, key=lambda m: m.programme.start).programme
         cats = filter_categories(rep.categories)
         channels = sorted(
-            [(m.programme.channel_number, m.programme.channel_name) for m in ms],
+            {(m.programme.channel_number, m.programme.channel_name) for m in ms},
             key=lambda c: (float(c[0]) if c[0].replace(".", "").isdigit() else float("inf"), c[1]),
         )
         subtitle = next((m.programme.subtitle for m in ms if m.programme.subtitle), "")
         grouped.append(GroupedMatch(
             title=main_title,
-            start=rep.start,
+            start=earliest_start,
             stop=rep.stop,
             subtitle=subtitle,
             description=rep.description,
             categories=cats,
             channels=channels,
             subscription=ms[0].subscription,
-            group_uid=f"{main_title.lower()}|{rep.start.replace(second=0,microsecond=0).isoformat()}",
+            group_uid=f"{main_title.lower()}|{earliest_start.replace(second=0,microsecond=0).isoformat()}",
         ))
 
     grouped.sort(key=lambda g: g.start)

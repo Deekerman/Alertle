@@ -114,21 +114,38 @@ def run_scan(cfg: dict, notifiers_map: dict[str, BaseNotifier], store: Notificat
     programmes = client.fetch_programmes(now, window_end)
 
     matches = find_matches(programmes, subscriptions)
-    grouped = group_matches(matches)
-    log.info("Found %d unique events (%d channel slots matched)", len(grouped), len(matches))
+    grace = cfg.get("group_window_minutes", 20)
+    grouped = group_matches(matches, grace_window_minutes=grace)
+    log.info("Found %d unique events (%d channel slots matched, grace=%dm)", len(grouped), len(matches), grace)
 
-    from espn import filter_replays
+    from espn import filter_replays, get_espn_game_time
     grouped = filter_replays(grouped, cfg)
     log.info("After replay filter: %d events remain", len(grouped))
 
+    # Set ESPN-verified start time; used as the notify_at anchor (reuses cached data)
+    for g in grouped:
+        t = get_espn_game_time(
+            g.title, g.start, g.categories,
+            espn_sport=getattr(g.subscription, "espn_sport", None),
+            espn_league=getattr(g.subscription, "espn_league", None),
+            espn_team=getattr(g.subscription, "espn_team", None),
+        )
+        if t:
+            g.espn_start = t
+            log.info("ESPN anchor: '%s' → %s (EPG was %s)",
+                     g.title, t.astimezone().strftime("%-I:%M %p"),
+                     g.start.astimezone().strftime("%-I:%M %p"))
+
     sent_count = 0
     for g in grouped:
-        notify_at = g.start - timedelta(minutes=g.subscription.lead_time_minutes)
+        anchor = g.espn_start if g.espn_start else g.start
+        notify_at = anchor - timedelta(minutes=g.subscription.lead_time_minutes)
         if now < notify_at:
             mins_until = int((notify_at - now).total_seconds() / 60)
-            log.info("Too early: [%s] '%s' — notify in %dm (at %s)",
+            log.info("Too early: [%s] '%s' — notify in %dm (at %s%s)",
                      g.subscription.label, g.title, mins_until,
-                     notify_at.astimezone().strftime("%-I:%M %p"))
+                     notify_at.astimezone().strftime("%-I:%M %p"),
+                     " via ESPN" if g.espn_start else "")
             continue
 
         if store.already_sent(g.group_uid, g.subscription.label):

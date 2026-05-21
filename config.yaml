@@ -15,6 +15,11 @@ epg_cache_hours: 1
 # Can be overridden per subscription
 default_lead_time_minutes: 30
 
+# Grace window for grouping the same game across channels (minutes).
+# Channels broadcasting a related title within this window are merged into
+# one notification. Set to 0 to require an exact-minute match.
+group_window_minutes: 20
+
 # Cross-reference ESPN's free API to skip replays.
 # When true, each matched event is checked: if ESPN shows the game completed
 # more than 4 hours before the EPG broadcast starts, the notification is

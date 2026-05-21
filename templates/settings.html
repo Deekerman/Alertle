@@ -43,6 +43,12 @@
                  value="{{ cfg.get('epg_cache_hours', 1) }}" />
           <p class="form-hint">How long to reuse a fetched EPG before re-downloading. 0 = no cache.</p>
         </div>
+        <div>
+          <label class="form-label">Group window (minutes)</label>
+          <input name="group_window_minutes" class="field" type="number" min="0"
+                 value="{{ cfg.get('group_window_minutes', 20) }}" />
+          <p class="form-hint">Channels showing the same game within this window are merged into one notification. 0 = exact-minute match only.</p>
+        </div>
       </div>
     </section>
 

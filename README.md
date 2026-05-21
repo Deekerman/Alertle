@@ -60,8 +60,7 @@ Configure your preferred channels in the **Notifications** tab of the web UI.
 ```bash
 git clone https://github.com/Deekerman/alertle.git
 cd alertle
-npm install
-node server.js
+python3 server.py
 ```
 
 Open **http://localhost:8888** — the Alertle Turtle will be waiting.

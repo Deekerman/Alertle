@@ -103,6 +103,8 @@ class Subscription:
     espn_sport: Optional[str] = None
     espn_league: Optional[str] = None
     espn_team: Optional[str] = None
+    require_live: bool = False
+    enabled: bool = True
     _title_re: Optional[re.Pattern] = field(default=None, init=False, repr=False, compare=False)
     _subtitle_re: Optional[re.Pattern] = field(default=None, init=False, repr=False, compare=False)
     _desc_re: Optional[re.Pattern] = field(default=None, init=False, repr=False, compare=False)
@@ -176,6 +178,9 @@ class Subscription:
                 if t and t in text:
                     return False
 
+        if self.require_live and not prog.is_live:
+            return False
+
         return True
 
 
@@ -223,6 +228,8 @@ def build_subscriptions(raw: list[dict], default_lead_time: int) -> list[Subscri
             espn_sport=entry.get("espn_sport") or None,
             espn_league=entry.get("espn_league") or None,
             espn_team=entry.get("espn_team") or None,
+            require_live=bool(entry.get("require_live", False)),
+            enabled=bool(entry.get("enabled", True)),
         ))
     return subs
 
@@ -329,6 +336,7 @@ def group_programmes(programmes: list[Programme]) -> list[dict]:
                 "channels": [(p.channel_number, p.channel_name) for p in g],
                 "sport_hint": sport_hint,
                 "channel_hint": rep.channel_name if len(g) == 1 else "",
+                "is_live": any(p.is_live for p in g),
             })
 
     result.sort(key=lambda x: x["start"])

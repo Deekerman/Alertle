@@ -25,6 +25,7 @@ class Programme:
     description: str = ""
     categories: list[str] = field(default_factory=list)
     uid: str = ""
+    is_live: bool = False
 
     def __post_init__(self):
         if not self.uid:
@@ -271,6 +272,7 @@ class DispatcharrClient:
                 stop=prog_stop,
                 description=desc_el.text if desc_el is not None else "",
                 categories=categories,
+                is_live=prog.find("live") is not None,
             ))
         return programmes
 

@@ -184,12 +184,20 @@
             </div>
             {% endif %}
             <div class="flex items-center justify-between pt-2">
-              <label class="flex items-center gap-2.5 cursor-pointer select-none">
-                <input type="checkbox" name="require_sport" value="on" class="toggle" />
-                <span class="text-xs text-gray-300">Require sports category
-                  <span class="text-muted font-normal"> — blocks movies &amp; shows when using keyword/channel filter</span>
-                </span>
-              </label>
+              <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+                <label class="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input type="checkbox" name="require_sport" value="on" class="toggle" />
+                  <span class="text-xs text-gray-300">Require sports category
+                    <span class="text-muted font-normal"> — blocks movies &amp; shows when using keyword/channel filter</span>
+                  </span>
+                </label>
+                <label class="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input type="checkbox" name="require_live" value="on" class="toggle" />
+                  <span class="text-xs text-gray-300">Live broadcasts only
+                    <span class="text-muted font-normal"> — only match programmes marked &lt;live&gt; in the EPG</span>
+                  </span>
+                </label>
+              </div>
               <button type="submit" class="btn-primary ml-4 shrink-0">Add</button>
             </div>
           </form>
@@ -406,6 +414,14 @@
         <label for="edit-req-sport" class="cursor-pointer">
           <p class="text-xs text-gray-300">Require sports category</p>
           <p class="form-hint mt-0.5">Blocks movies &amp; shows when using keyword/channel filter</p>
+        </label>
+      </div>
+      <div class="flex items-start gap-2.5">
+        <input type="checkbox" name="require_live" value="on" id="edit-req-live"
+               :checked="$store.subEdit.require_live" class="toggle mt-0.5" />
+        <label for="edit-req-live" class="cursor-pointer">
+          <p class="text-xs text-gray-300">Live broadcasts only</p>
+          <p class="form-hint mt-0.5">Only match programmes marked &lt;live&gt; in the EPG</p>
         </label>
       </div>
       {% if endpoints %}

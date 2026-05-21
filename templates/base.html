@@ -126,7 +126,7 @@
         open: false, idx: null,
         label:'', sport:'', team:'', keyword:'', channel:'',
         title_pattern:'', subtitle_pattern:'', desc_pattern:'',
-        exclude:'', require_sport: false, lead:'', notify_channels: [],
+        exclude:'', require_sport: false, require_live: false, lead:'', notify_channels: [],
         notif_title_tpl: '', notif_body_tpl: '',
         espn_sport: '', espn_league: '', espn_team: '',
         fill(idx, data) {
@@ -141,6 +141,7 @@
           this.desc_pattern     = data.desc_pattern     || '';
           this.exclude = Array.isArray(data.exclude) ? data.exclude.join(', ') : '';
           this.require_sport    = !!data.require_sport;
+          this.require_live     = !!data.require_live;
           this.lead = data.lead_time_minutes != null ? String(data.lead_time_minutes) : '';
           this.notify_channels  = Array.isArray(data.notify_channels) ? data.notify_channels : [];
           this.notif_title_tpl  = data.notif_title_template || '';

@@ -68,7 +68,12 @@
           <p class="text-sm font-semibold text-indigo-300 mt-0.5">{{ g.start.astimezone().strftime('%-I:%M %p') }}</p>
         </td>
         <td class="px-5 py-3.5 align-top">
-          <p class="font-medium text-gray-100 leading-snug">{{ g.title }}</p>
+          <p class="font-medium text-gray-100 leading-snug inline-flex items-center gap-1.5 flex-wrap">
+            {{ g.title }}
+            {% if g.get('is_live') %}
+            <span class="pill bg-red-500/15 text-red-400 border border-red-500/30 text-[10px]">LIVE</span>
+            {% endif %}
+          </p>
           {% if g.subtitle %}
           <p class="text-xs mt-0.5 {{ g.categories|category_color }}">{{ g.subtitle }}</p>
           {% elif g.categories %}

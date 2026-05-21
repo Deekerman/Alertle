@@ -445,6 +445,7 @@ def _build_sub_entry(
     notify_channels: str = "",
     notif_title_tpl: str = "", notif_body_tpl: str = "",
     espn_sport: str = "", espn_league: str = "", espn_team: str = "",
+    require_live: str = "",
 ) -> dict:
     entry: dict = {"label": label.strip()}
     for key, val in [("sport", sport), ("team", team), ("keyword", keyword),
@@ -458,6 +459,8 @@ def _build_sub_entry(
         entry["exclude"] = exclude_list
     if require_sport == "on":
         entry["require_sport"] = True
+    if require_live == "on":
+        entry["require_live"] = True
     if lead_time_minutes.strip():
         try:
             entry["lead_time_minutes"] = int(lead_time_minutes)
@@ -495,13 +498,15 @@ async def add_subscription(
     lead_time_minutes: str = Form(""), notify_channels: str = Form(""),
     notif_title_tpl: str = Form(""), notif_body_tpl: str = Form(""),
     espn_sport: str = Form(""), espn_league: str = Form(""), espn_team: str = Form(""),
+    require_live: str = Form(""),
 ):
     cfg = load_config()
     subs = cfg.setdefault("subscriptions", [])
     subs.append(_build_sub_entry(label, sport, team, keyword, channel,
                                  title_pattern, subtitle_pattern, desc_pattern,
                                  exclude, require_sport, lead_time_minutes, notify_channels,
-                                 notif_title_tpl, notif_body_tpl, espn_sport, espn_league, espn_team))
+                                 notif_title_tpl, notif_body_tpl, espn_sport, espn_league, espn_team,
+                                 require_live))
     save_config(cfg)
     return _sub_response(request, subs, f"Added: {label}", cfg)
 
@@ -534,14 +539,19 @@ async def update_subscription_edit(
     lead_time_minutes: str = Form(""), notify_channels: str = Form(""),
     notif_title_tpl: str = Form(""), notif_body_tpl: str = Form(""),
     espn_sport: str = Form(""), espn_league: str = Form(""), espn_team: str = Form(""),
+    require_live: str = Form(""),
 ):
     cfg = load_config()
     subs = cfg.get("subscriptions", [])
     if 0 <= idx < len(subs):
-        subs[idx] = _build_sub_entry(label, sport, team, keyword, channel,
+        new_entry = _build_sub_entry(label, sport, team, keyword, channel,
                                      title_pattern, subtitle_pattern, desc_pattern,
                                      exclude, require_sport, lead_time_minutes, notify_channels,
-                                     notif_title_tpl, notif_body_tpl, espn_sport, espn_league, espn_team)
+                                     notif_title_tpl, notif_body_tpl, espn_sport, espn_league, espn_team,
+                                     require_live)
+        if not subs[idx].get("enabled", True):
+            new_entry["enabled"] = False
+        subs[idx] = new_entry
         save_config(cfg)
     return _sub_response(request, subs, f"Saved: {label}", cfg)
 
@@ -556,14 +566,19 @@ async def update_subscription(
     exclude: str = Form(""), require_sport: str = Form(""),
     lead_time_minutes: str = Form(""), notify_channels: str = Form(""),
     espn_sport: str = Form(""), espn_league: str = Form(""), espn_team: str = Form(""),
+    require_live: str = Form(""),
 ):
     cfg = load_config()
     subs = cfg.get("subscriptions", [])
     if 0 <= idx < len(subs):
-        subs[idx] = _build_sub_entry(label, sport, team, keyword, channel,
+        new_entry = _build_sub_entry(label, sport, team, keyword, channel,
                                      title_pattern, subtitle_pattern, desc_pattern,
                                      exclude, require_sport, lead_time_minutes, notify_channels,
-                                     espn_sport=espn_sport, espn_league=espn_league, espn_team=espn_team)
+                                     espn_sport=espn_sport, espn_league=espn_league, espn_team=espn_team,
+                                     require_live=require_live)
+        if not subs[idx].get("enabled", True):
+            new_entry["enabled"] = False
+        subs[idx] = new_entry
         save_config(cfg)
     return _sub_response(request, subs, f"Saved: {label}", cfg)
 
@@ -577,6 +592,21 @@ async def delete_subscription(request: Request, idx: int):
         label = subs.pop(idx).get("label", "")
         save_config(cfg)
     return _sub_response(request, subs, f"Removed: {label}", cfg)
+
+
+@app.post("/partial/subscriptions/{idx}/toggle", response_class=HTMLResponse)
+async def toggle_subscription(request: Request, idx: int):
+    cfg = load_config()
+    subs = cfg.get("subscriptions", [])
+    label = ""
+    if 0 <= idx < len(subs):
+        label = subs[idx].get("label", "")
+        current = subs[idx].get("enabled", True)
+        subs[idx]["enabled"] = not current
+        save_config(cfg)
+        state = "enabled" if not current else "disabled"
+        return _sub_response(request, subs, f"{label}: {state}", cfg)
+    return _sub_response(request, subs, "", cfg)
 
 
 # ── Settings ───────────────────────────────────────────────────────────────

@@ -101,6 +101,7 @@ def run_scan(cfg: dict, notifiers_map: dict[str, BaseNotifier], store: Notificat
 
     default_lead = cfg.get("default_lead_time_minutes", 30)
     subscriptions = build_subscriptions(cfg.get("subscriptions", []), default_lead)
+    subscriptions = [s for s in subscriptions if s.enabled]
 
     if not subscriptions:
         log.warning("No subscriptions configured — nothing to match.")

@@ -153,10 +153,10 @@ def check_replay(epg_title: str, epg_start: datetime, categories: list[str],
         None  — ESPN has no data for this sport, or no matching event found;
                 caller should assume live (fail open).
 
-    Strategy: check for any live or scheduled event first. If ESPN shows a
-    matching game as upcoming/live, it's a real broadcast. Only when all
-    matching events are completed do we check the time gap — >4 hours after
-    game start means replay.
+    Strategy: find the ESPN event closest in time to the EPG broadcast start,
+    then classify based on that event's state. Using the closest event prevents
+    a future game (e.g. 7pm tonight) from masking a replay airing earlier
+    (e.g. a 2pm rebroadcast of last night's game).
     """
     if espn_sport and espn_league:
         leagues = [(espn_sport, espn_league)]
@@ -184,18 +184,24 @@ def check_replay(epg_title: str, epg_start: datetime, categories: list[str],
         if not matched:
             continue
 
-        # If ESPN has a live or upcoming game matching this title, it's a real broadcast
-        live_or_upcoming = [ev for ev in matched if ev["state"] in ("pre", "in")]
-        if live_or_upcoming:
+        # Step 1: Is there a live/upcoming event temporally aligned with this EPG
+        # broadcast?  We only count an upcoming game as "confirming live" when the
+        # game starts within 2 hours of the EPG start time.  This prevents a 7pm
+        # game from masking a 2pm replay of last night's completed game.
+        close_live = [
+            ev for ev in matched
+            if ev["state"] in ("pre", "in")
+            and (ev["date"] - epg_start).total_seconds() <= 2 * 3600
+        ]
+        if close_live:
             closest_live = min(
-                live_or_upcoming,
-                key=lambda ev: abs((epg_start - ev["date"]).total_seconds()),
+                close_live, key=lambda ev: abs((epg_start - ev["date"]).total_seconds())
             )
             log.info("ESPN: LIVE '%s' | confirmed %s game %s", epg_title,
                      closest_live["state"], closest_live["date"].strftime("%Y-%m-%d %H:%M"))
             return False
 
-        # Only completed games found — determine if this is a replay
+        # Step 2: No temporally-close live event — check completed events for replay.
         completed = [ev for ev in matched if ev["state"] == "post" and ev["completed"]]
         if not completed:
             log.info("ESPN: unknown state for '%s' — allowing", epg_title)
@@ -203,7 +209,6 @@ def check_replay(epg_title: str, epg_start: datetime, categories: list[str],
 
         closest = min(completed, key=lambda ev: abs((epg_start - ev["date"]).total_seconds()))
         time_gap = epg_start - closest["date"]
-
         replay = time_gap > timedelta(hours=4)
         log.info(
             "ESPN: %s '%s' | game %s | EPG %s | gap %.1fh",

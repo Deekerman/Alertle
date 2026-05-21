@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# EPG Notifier — Debian/Ubuntu installer
+# Alertle — Debian/Ubuntu installer
 # Run as root: sudo bash install.sh
 
 set -euo pipefail
@@ -15,15 +15,15 @@ die()     { echo -e "${RED}  ✗ ERROR:${RESET} $*" >&2; exit 1; }
 header()  { echo -e "\n${BOLD}$*${RESET}"; }
 
 # ── Defaults (override with env vars before running) ───────────────────────
-INSTALL_DIR="${INSTALL_DIR:-/opt/epg-notifier}"
-SERVICE_USER="${SERVICE_USER:-epg-notifier}"
+INSTALL_DIR="${INSTALL_DIR:-/opt/alertle}"
+SERVICE_USER="${SERVICE_USER:-alertle}"
 WEB_PORT="${WEB_PORT:-8888}"
 WEB_HOST="${WEB_HOST:-0.0.0.0}"
-SCAN_CRON="${SCAN_CRON:-}"          # e.g. "*/30 * * * *" — leave blank to skip cron setup
+SCAN_CRON="${SCAN_CRON:-}"          # e.g. "*/30 * * * *" — leave blank; the web UI handles polling
 SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ── Pre-flight ─────────────────────────────────────────────────────────────
-header "EPG Notifier installer"
+header "Alertle installer"
 
 [[ "$EUID" -eq 0 ]] || die "Please run as root: sudo bash install.sh"
 
@@ -60,21 +60,21 @@ fi
 header "Installing to $INSTALL_DIR…"
 mkdir -p "$INSTALL_DIR"
 
-# Copy project files
+# Copy project files (preserve the live DB and user config)
 rsync -a --delete \
   --exclude='.git' \
   --exclude='__pycache__' \
   --exclude='*.pyc' \
   --exclude='*.db' \
-  --exclude='epg_notifier.db' \
+  --exclude='alertle.db' \
   "$SOURCE_DIR/" "$INSTALL_DIR/"
 
-# Preserve existing config.yaml (don't overwrite user's credentials)
-if [[ -f "$INSTALL_DIR/config.yaml" && "$SOURCE_DIR/config.yaml" -nt "$INSTALL_DIR/config.yaml" ]]; then
+# Preserve existing config.yaml — never overwrite user's settings on upgrade
+if [[ -f "$INSTALL_DIR/config.yaml" ]]; then
   warn "config.yaml already exists — keeping your existing config."
   cp "$SOURCE_DIR/config.yaml" "$INSTALL_DIR/config.yaml.new"
   info "New default config saved as config.yaml.new for reference."
-elif [[ ! -f "$INSTALL_DIR/config.yaml" ]]; then
+else
   cp "$SOURCE_DIR/config.yaml" "$INSTALL_DIR/config.yaml"
 fi
 
@@ -101,13 +101,13 @@ chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
 chmod 640 "$INSTALL_DIR/config.yaml"
 success "Permissions set"
 
-# ── Systemd service (web UI) ───────────────────────────────────────────────
+# ── Systemd service ────────────────────────────────────────────────────────
 header "Installing systemd service…"
-SERVICE_FILE="/etc/systemd/system/epg-notifier.service"
+SERVICE_FILE="/etc/systemd/system/alertle.service"
 
 cat > "$SERVICE_FILE" <<EOF
 [Unit]
-Description=EPG Notifier — web UI
+Description=Alertle — EPG game notification service
 After=network.target
 Wants=network.target
 
@@ -132,28 +132,34 @@ WantedBy=multi-user.target
 EOF
 
 systemctl daemon-reload
-systemctl enable epg-notifier
-systemctl restart epg-notifier
+systemctl enable alertle
+
+# Restart if already running, otherwise start fresh
+if systemctl is-active --quiet alertle; then
+  systemctl restart alertle
+else
+  systemctl start alertle
+fi
 success "Service enabled and started"
 
-# ── Cron job (optional scanner) ────────────────────────────────────────────
+# ── Cron job (optional — only needed for headless / no-web-UI operation) ───
 if [[ -n "$SCAN_CRON" ]]; then
   header "Installing cron job…"
-  CRON_CMD="$SCAN_CRON $SERVICE_USER $VENV/bin/python $INSTALL_DIR/main.py >> /var/log/epg-notifier-scan.log 2>&1"
-  CRON_FILE="/etc/cron.d/epg-notifier"
+  CRON_CMD="$SCAN_CRON $SERVICE_USER $VENV/bin/python $INSTALL_DIR/main.py >> /var/log/alertle-scan.log 2>&1"
+  CRON_FILE="/etc/cron.d/alertle"
 
-  echo "# EPG Notifier scanner — edit schedule as needed" > "$CRON_FILE"
+  echo "# Alertle scanner — edit schedule as needed" > "$CRON_FILE"
   echo "$CRON_CMD" >> "$CRON_FILE"
   chmod 644 "$CRON_FILE"
   success "Cron job installed at $CRON_FILE (schedule: $SCAN_CRON)"
 else
-  info "No cron schedule set — the web UI's 'Scan Now' button handles manual scans."
-  info "To enable automatic scanning, re-run with:  SCAN_CRON='*/30 * * * *' sudo -E bash install.sh"
+  info "No cron schedule set — the web UI handles polling automatically (configurable in Settings)."
+  info "To add a standalone cron scanner, re-run with:  SCAN_CRON='*/30 * * * *' sudo -E bash install.sh"
 fi
 
 # ── Log rotation ───────────────────────────────────────────────────────────
-cat > /etc/logrotate.d/epg-notifier <<'EOF'
-/var/log/epg-notifier-scan.log {
+cat > /etc/logrotate.d/alertle <<'EOF'
+/var/log/alertle-scan.log {
     weekly
     missingok
     rotate 4
@@ -165,11 +171,11 @@ EOF
 # ── Status check ───────────────────────────────────────────────────────────
 header "Checking service status…"
 sleep 1
-if systemctl is-active --quiet epg-notifier; then
-  success "epg-notifier is running"
+if systemctl is-active --quiet alertle; then
+  success "alertle is running"
 else
   warn "Service did not start cleanly. Check logs:"
-  echo "       journalctl -u epg-notifier -n 30"
+  echo "       journalctl -u alertle -n 30"
 fi
 
 # ── Done ───────────────────────────────────────────────────────────────────
@@ -179,13 +185,13 @@ echo
 echo -e "  Web UI  →  ${CYAN}http://$(hostname -I | awk '{print $1}'):${WEB_PORT}${RESET}"
 echo
 echo -e "  ${BOLD}Next steps:${RESET}"
-echo -e "    1. Open the web UI and fill in your Dispatcharr URL + token under Settings"
+echo -e "    1. Open the web UI and paste your XMLTV URL under Settings → EPG Source"
 echo -e "    2. Add subscriptions on the Subscriptions page or via Browse EPG"
-echo -e "    3. Enable at least one notification channel in Settings"
+echo -e "    3. Add at least one notification endpoint in Settings"
 echo
 echo -e "  ${BOLD}Useful commands:${RESET}"
-echo -e "    View logs   →  journalctl -u epg-notifier -f"
-echo -e "    Restart     →  systemctl restart epg-notifier"
-echo -e "    Stop        →  systemctl stop epg-notifier"
+echo -e "    View logs   →  journalctl -u alertle -f"
+echo -e "    Restart     →  systemctl restart alertle"
+echo -e "    Stop        →  systemctl stop alertle"
 echo -e "    Config file →  ${INSTALL_DIR}/config.yaml"
 echo

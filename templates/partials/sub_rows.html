@@ -81,6 +81,11 @@
             {% if sub.get('require_sport') %}
             <span class="pill bg-orange-500/10 text-orange-300 border border-orange-500/20">sport only</span>
             {% endif %}
+            {% if sub.get('espn_league') or sub.get('espn_team') %}
+            <span class="pill bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              espn:{% if sub.get('espn_team') %} {{ sub.espn_team }}{% elif sub.get('espn_league') %} {{ sub.espn_league|upper }}{% endif %}
+            </span>
+            {% endif %}
             {% if not sub.sport and not sub.team and not sub.keyword and not sub.channel
                   and not sub.get('title_pattern') and not sub.get('subtitle_pattern') and not sub.get('desc_pattern') %}
             <span class="text-muted text-xs">—</span>

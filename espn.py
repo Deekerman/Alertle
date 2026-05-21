@@ -121,7 +121,31 @@ def _fetch_events(sport: str, league: str, date_from: datetime, date_to: datetim
     return events
 
 
-def check_replay(epg_title: str, epg_start: datetime, categories: list[str]) -> Optional[bool]:
+def get_teams(sport: str, league: str) -> list[str]:
+    """Fetch team display names for a sport/league from ESPN."""
+    url = f"{_ESPN_BASE}/{sport}/{league}/teams"
+    log.info("ESPN API request: %s?limit=100", url)
+    try:
+        resp = requests.get(url, params={"limit": 100}, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+        resp.raise_for_status()
+        raw = resp.json()
+    except Exception as exc:
+        log.warning("ESPN teams API %s/%s failed: %s", sport, league, exc)
+        return []
+
+    teams: list[str] = []
+    for sport_obj in raw.get("sports", []):
+        for league_obj in sport_obj.get("leagues", []):
+            for entry in league_obj.get("teams", []):
+                name = entry.get("team", {}).get("displayName", "")
+                if name:
+                    teams.append(name)
+    return sorted(teams)
+
+
+def check_replay(epg_title: str, epg_start: datetime, categories: list[str],
+                 espn_sport: Optional[str] = None, espn_league: Optional[str] = None,
+                 espn_team: Optional[str] = None) -> Optional[bool]:
     """
     Returns:
         True  — ESPN confirms this is a replay of a completed game.
@@ -134,7 +158,10 @@ def check_replay(epg_title: str, epg_start: datetime, categories: list[str]) -> 
     matching events are completed do we check the time gap — >4 hours after
     game start means replay.
     """
-    leagues = _leagues_for_categories(categories)
+    if espn_sport and espn_league:
+        leagues = [(espn_sport, espn_league)]
+    else:
+        leagues = _leagues_for_categories(categories)
     if not leagues:
         log.info("ESPN: no leagues mapped for categories %s — skipping check for '%s'", categories, epg_title)
         return None
@@ -144,10 +171,16 @@ def check_replay(epg_title: str, epg_start: datetime, categories: list[str]) -> 
     search_to = epg_start + timedelta(days=7)
 
     for sport, league in leagues:
-        matched = [
-            ev for ev in _fetch_events(sport, league, search_from, search_to)
-            if _matches_event(epg_title, ev["name"], ev["competitors"])
-        ]
+        events = _fetch_events(sport, league, search_from, search_to)
+        if espn_team:
+            matched = [ev for ev in events if any(
+                espn_team.lower() in c.lower() for c in ev["competitors"]
+            )]
+        else:
+            matched = [
+                ev for ev in events
+                if _matches_event(epg_title, ev["name"], ev["competitors"])
+            ]
         if not matched:
             continue
 
@@ -224,7 +257,12 @@ def filter_replays(grouped: list, cfg: dict) -> list:
     log.info("ESPN verify ON | notify_replays=%s | checking %d events", notify_replays, len(grouped))
     out = []
     for g in grouped:
-        result = check_replay(g.title, g.start, g.categories)
+        result = check_replay(
+            g.title, g.start, g.categories,
+            espn_sport=getattr(g.subscription, "espn_sport", None),
+            espn_league=getattr(g.subscription, "espn_league", None),
+            espn_team=getattr(g.subscription, "espn_team", None),
+        )
         if result is True:
             if notify_replays:
                 g.is_replay = True

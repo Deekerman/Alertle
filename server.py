@@ -27,6 +27,7 @@ ROOT = Path(__file__).parent
 sys.path.insert(0, str(ROOT))
 
 from epg_scanner import DispatcharrClient, Programme
+from espn import _LEAGUE_MAP, get_teams as _espn_get_teams
 from matcher import build_subscriptions, find_matches, group_matches, group_programmes
 from notifiers.base import (
     DEFAULT_TITLE_TEMPLATE, DEFAULT_BODY_TEMPLATE, build_preview_vars, format_grouped_message,
@@ -402,6 +403,32 @@ async def partial_subscriptions(request: Request):
     })
 
 
+# ── ESPN helper API ───────────────────────────────────────────────────────
+
+_teams_cache: dict[str, list[str]] = {}
+
+
+@app.get("/api/espn/leagues")
+async def api_espn_leagues():
+    seen: set[tuple[str, str]] = set()
+    result = []
+    for keyword, sport, league in _LEAGUE_MAP:
+        if (sport, league) not in seen:
+            seen.add((sport, league))
+            result.append({"sport": sport, "league": league, "label": league.upper().replace(".", " ")})
+    return result
+
+
+@app.get("/api/espn/teams")
+async def api_espn_teams(sport: str = "", league: str = ""):
+    if not sport or not league:
+        return []
+    cache_key = f"{sport}/{league}"
+    if cache_key not in _teams_cache:
+        _teams_cache[cache_key] = _espn_get_teams(sport, league)
+    return _teams_cache[cache_key]
+
+
 # ── Subscription CRUD ──────────────────────────────────────────────────────
 
 _SUB_FORM_PARAMS = dict(
@@ -417,11 +444,13 @@ def _build_sub_entry(
     exclude: str, require_sport: str, lead_time_minutes: str,
     notify_channels: str = "",
     notif_title_tpl: str = "", notif_body_tpl: str = "",
+    espn_sport: str = "", espn_league: str = "", espn_team: str = "",
 ) -> dict:
     entry: dict = {"label": label.strip()}
     for key, val in [("sport", sport), ("team", team), ("keyword", keyword),
                      ("channel", channel), ("title_pattern", title_pattern),
-                     ("subtitle_pattern", subtitle_pattern), ("desc_pattern", desc_pattern)]:
+                     ("subtitle_pattern", subtitle_pattern), ("desc_pattern", desc_pattern),
+                     ("espn_sport", espn_sport), ("espn_league", espn_league), ("espn_team", espn_team)]:
         if val.strip():
             entry[key] = val.strip()
     exclude_list = [x.strip() for x in exclude.split(",") if x.strip()]
@@ -465,13 +494,14 @@ async def add_subscription(
     exclude: str = Form(""), require_sport: str = Form(""),
     lead_time_minutes: str = Form(""), notify_channels: str = Form(""),
     notif_title_tpl: str = Form(""), notif_body_tpl: str = Form(""),
+    espn_sport: str = Form(""), espn_league: str = Form(""), espn_team: str = Form(""),
 ):
     cfg = load_config()
     subs = cfg.setdefault("subscriptions", [])
     subs.append(_build_sub_entry(label, sport, team, keyword, channel,
                                  title_pattern, subtitle_pattern, desc_pattern,
                                  exclude, require_sport, lead_time_minutes, notify_channels,
-                                 notif_title_tpl, notif_body_tpl))
+                                 notif_title_tpl, notif_body_tpl, espn_sport, espn_league, espn_team))
     save_config(cfg)
     return _sub_response(request, subs, f"Added: {label}", cfg)
 
@@ -503,6 +533,7 @@ async def update_subscription_edit(
     exclude: str = Form(""), require_sport: str = Form(""),
     lead_time_minutes: str = Form(""), notify_channels: str = Form(""),
     notif_title_tpl: str = Form(""), notif_body_tpl: str = Form(""),
+    espn_sport: str = Form(""), espn_league: str = Form(""), espn_team: str = Form(""),
 ):
     cfg = load_config()
     subs = cfg.get("subscriptions", [])
@@ -510,7 +541,7 @@ async def update_subscription_edit(
         subs[idx] = _build_sub_entry(label, sport, team, keyword, channel,
                                      title_pattern, subtitle_pattern, desc_pattern,
                                      exclude, require_sport, lead_time_minutes, notify_channels,
-                                     notif_title_tpl, notif_body_tpl)
+                                     notif_title_tpl, notif_body_tpl, espn_sport, espn_league, espn_team)
         save_config(cfg)
     return _sub_response(request, subs, f"Saved: {label}", cfg)
 
@@ -524,13 +555,15 @@ async def update_subscription(
     subtitle_pattern: str = Form(""), desc_pattern: str = Form(""),
     exclude: str = Form(""), require_sport: str = Form(""),
     lead_time_minutes: str = Form(""), notify_channels: str = Form(""),
+    espn_sport: str = Form(""), espn_league: str = Form(""), espn_team: str = Form(""),
 ):
     cfg = load_config()
     subs = cfg.get("subscriptions", [])
     if 0 <= idx < len(subs):
         subs[idx] = _build_sub_entry(label, sport, team, keyword, channel,
                                      title_pattern, subtitle_pattern, desc_pattern,
-                                     exclude, require_sport, lead_time_minutes, notify_channels)
+                                     exclude, require_sport, lead_time_minutes, notify_channels,
+                                     espn_sport=espn_sport, espn_league=espn_league, espn_team=espn_team)
         save_config(cfg)
     return _sub_response(request, subs, f"Saved: {label}", cfg)
 

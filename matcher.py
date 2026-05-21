@@ -100,6 +100,9 @@ class Subscription:
     notify_channels: list[str] = field(default_factory=list)  # empty = all enabled
     notif_title_template: Optional[str] = None  # None = use global default
     notif_body_template: Optional[str] = None
+    espn_sport: Optional[str] = None
+    espn_league: Optional[str] = None
+    espn_team: Optional[str] = None
     _title_re: Optional[re.Pattern] = field(default=None, init=False, repr=False, compare=False)
     _subtitle_re: Optional[re.Pattern] = field(default=None, init=False, repr=False, compare=False)
     _desc_re: Optional[re.Pattern] = field(default=None, init=False, repr=False, compare=False)
@@ -217,6 +220,9 @@ def build_subscriptions(raw: list[dict], default_lead_time: int) -> list[Subscri
             notify_channels=entry.get("notify_channels", []),
             notif_title_template=entry.get("notif_title_template") or None,
             notif_body_template=entry.get("notif_body_template") or None,
+            espn_sport=entry.get("espn_sport") or None,
+            espn_league=entry.get("espn_league") or None,
+            espn_team=entry.get("espn_team") or None,
         ))
     return subs
 

@@ -128,6 +128,7 @@
         title_pattern:'', subtitle_pattern:'', desc_pattern:'',
         exclude:'', require_sport: false, lead:'', notify_channels: [],
         notif_title_tpl: '', notif_body_tpl: '',
+        espn_sport: '', espn_league: '', espn_team: '',
         fill(idx, data) {
           this.idx = idx;
           this.label            = data.label            || '';
@@ -144,6 +145,9 @@
           this.notify_channels  = Array.isArray(data.notify_channels) ? data.notify_channels : [];
           this.notif_title_tpl  = data.notif_title_template || '';
           this.notif_body_tpl   = data.notif_body_template  || '';
+          this.espn_sport       = data.espn_sport  || '';
+          this.espn_league      = data.espn_league || '';
+          this.espn_team        = data.espn_team   || '';
           this.open = true;
         },
         close() { this.open = false; this.idx = null; }

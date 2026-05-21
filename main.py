@@ -2,6 +2,7 @@
 """EPG game notifier — scans Dispatcharr EPG and fires alerts for subscribed events."""
 
 import argparse
+import hashlib
 import logging
 import sys
 import time
@@ -105,9 +106,10 @@ def run_scan(cfg: dict, notifiers_map: dict[str, BaseNotifier], store: Notificat
         log.warning("No subscriptions configured — nothing to match.")
         return
 
-    log.info("Scanning EPG from %s to %s | espn_verify=%s notify_replays=%s",
+    desc_dedup = cfg.get("desc_dedup", False)
+    log.info("Scanning EPG from %s to %s | espn_verify=%s notify_replays=%s desc_dedup=%s",
              now.strftime("%Y-%m-%d %H:%M"), window_end.strftime("%Y-%m-%d %H:%M"),
-             cfg.get("espn_verify", False), cfg.get("espn_notify_replays", False))
+             cfg.get("espn_verify", False), cfg.get("espn_notify_replays", False), desc_dedup)
     programmes = client.fetch_programmes(now, window_end)
 
     matches = find_matches(programmes, subscriptions)
@@ -132,6 +134,14 @@ def run_scan(cfg: dict, notifiers_map: dict[str, BaseNotifier], store: Notificat
             log.info("Already sent: [%s] '%s'", g.subscription.label, g.title)
             continue
 
+        desc_hash = None
+        if desc_dedup and g.description and g.description.strip():
+            desc_hash = hashlib.sha256(g.description.strip().lower().encode()).hexdigest()
+            if store.description_already_sent(desc_hash):
+                log.info("Desc dedup: [%s] '%s' — identical description already sent, suppressing",
+                         g.subscription.label, g.title)
+                continue
+
         notif_tpl = cfg.get("notification_template", {})
         title_tpl = g.subscription.notif_title_template or notif_tpl.get("title", DEFAULT_TITLE_TEMPLATE)
         body_tpl = g.subscription.notif_body_template or notif_tpl.get("body", DEFAULT_BODY_TEMPLATE)
@@ -147,7 +157,7 @@ def run_scan(cfg: dict, notifiers_map: dict[str, BaseNotifier], store: Notificat
         else:
             log.info("Sending notification: %s", title)
             _dispatch(notifiers_map, g.subscription.notify_channels, title, body)
-            store.mark_sent(g.group_uid, g.subscription.label, now.isoformat())
+            store.mark_sent(g.group_uid, g.subscription.label, now.isoformat(), desc_hash)
             sent_count += 1
 
     if not dry_run:

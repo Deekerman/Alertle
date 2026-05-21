@@ -27,10 +27,16 @@ class NotificationStore:
                     uid TEXT NOT NULL,
                     subscription_label TEXT NOT NULL,
                     notified_at TEXT NOT NULL,
+                    description_hash TEXT,
                     PRIMARY KEY (uid, subscription_label)
                 )
                 """
             )
+            # Migration for existing installs
+            try:
+                conn.execute("ALTER TABLE sent ADD COLUMN description_hash TEXT")
+            except Exception:
+                pass  # column already exists
 
     def already_sent(self, uid: str, subscription_label: str) -> bool:
         with self._conn() as conn:
@@ -40,11 +46,22 @@ class NotificationStore:
             ).fetchone()
         return row is not None
 
-    def mark_sent(self, uid: str, subscription_label: str, notified_at: str):
+    def description_already_sent(self, description_hash: str) -> bool:
+        """True if any previously sent record has this exact description hash."""
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT 1 FROM sent WHERE description_hash = ? LIMIT 1",
+                (description_hash,),
+            ).fetchone()
+        return row is not None
+
+    def mark_sent(self, uid: str, subscription_label: str, notified_at: str,
+                  description_hash: str | None = None):
         with self._conn() as conn:
             conn.execute(
-                "INSERT OR IGNORE INTO sent (uid, subscription_label, notified_at) VALUES (?, ?, ?)",
-                (uid, subscription_label, notified_at),
+                "INSERT OR IGNORE INTO sent (uid, subscription_label, notified_at, description_hash) "
+                "VALUES (?, ?, ?, ?)",
+                (uid, subscription_label, notified_at, description_hash),
             )
 
     def prune_old(self, before_iso: str):

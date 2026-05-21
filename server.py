@@ -568,6 +568,7 @@ async def save_settings(request: Request):
         pass
     cfg["espn_verify"] = form.get("espn_verify") == "on"
     cfg["espn_notify_replays"] = form.get("espn_notify_replays") == "on"
+    cfg["desc_dedup"] = form.get("desc_dedup") == "on"
 
     tpl = cfg.setdefault("notification_template", {})
     tpl_title = form.get("notif_title_tpl", "").strip()

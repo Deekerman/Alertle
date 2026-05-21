@@ -21,6 +21,11 @@ default_lead_time_minutes: 30
 # suppressed. Falls back to notifying when ESPN has no data for the sport.
 espn_verify: false
 
+# Skip notifications for events whose EPG description exactly matches one already sent.
+# Catches replays without needing ESPN — works when your EPG uses identical
+# description text for replay broadcasts.
+desc_dedup: false
+
 # ── Notification message templates ──────────────────────────────────────────
 # Available variables: {rule} {title} {subtitle} {time} {date} {channels}
 #                      {duration} {description}

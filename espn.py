@@ -83,16 +83,18 @@ def _fetch_events(sport: str, league: str, date_from: datetime, date_to: datetim
     if cache_key in _cache:
         fetched_at, data = _cache[cache_key]
         if now - fetched_at < _CACHE_TTL:
+            log.debug("ESPN cache hit: %s/%s (%d events)", sport, league, len(data))
             return data
 
     url = f"{_ESPN_BASE}/{sport}/{league}/scoreboard"
+    log.info("ESPN API request: %s?dates=%s-%s", url, from_s, to_s)
     try:
         resp = requests.get(url, params={"dates": f"{from_s}-{to_s}", "limit": 200},
                             headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
         resp.raise_for_status()
         raw = resp.json()
     except Exception as exc:
-        log.warning("ESPN API %s/%s: %s", sport, league, exc)
+        log.warning("ESPN API %s/%s failed: %s", sport, league, exc)
         return []
 
     events: list[dict] = []
@@ -115,7 +117,7 @@ def _fetch_events(sport: str, league: str, date_from: datetime, date_to: datetim
         })
 
     _cache[cache_key] = (now, events)
-    log.debug("ESPN %s/%s: %d events (%s→%s)", sport, league, len(events), from_s, to_s)
+    log.info("ESPN API response: %s/%s — %d events (%s→%s)", sport, league, len(events), from_s, to_s)
     return events
 
 

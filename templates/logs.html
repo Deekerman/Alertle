@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="px-8 pt-8 pb-6 border-b border-border flex items-center justify-between">
+  <div>
+    <h1 class="text-lg font-semibold text-white">Logs</h1>
+    <p class="text-sm text-muted mt-0.5">Scan activity, ESPN API calls, and notifications</p>
+  </div>
+  <div class="flex items-center gap-2">
+    <span class="text-xs text-muted">{{ entries|length }} entries (last 300)</span>
+    <a href="/logs" class="btn-secondary text-xs">
+      <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"/>
+      </svg>
+      Refresh
+    </a>
+  </div>
+</div>
+
+<!-- Filter bar -->
+<div class="px-8 pt-4 pb-2 flex items-center gap-2 flex-wrap" x-data="{ filter: 'all' }">
+  {% set filters = [
+    ('all',     'All'),
+    ('espn',    'ESPN'),
+    ('main',    'Scan'),
+    ('server',  'Server'),
+    ('WARNING', 'Warnings'),
+    ('ERROR',   'Errors'),
+  ] %}
+  {% for key, label in filters %}
+  <button
+    @click="filter = '{{ key }}'"
+    :class="filter === '{{ key }}' ? 'btn-primary text-xs py-1 px-3' : 'btn-ghost text-xs py-1 px-3'"
+  >{{ label }}</button>
+  {% endfor %}
+
+  <div class="ml-auto">
+    <p class="text-[10px] text-muted/50">In-memory only — resets on restart</p>
+  </div>
+
+  {% if not entries %}
+  <div class="w-full mt-6 flex flex-col items-center justify-center py-16 text-center">
+    <p class="text-gray-300 font-medium">No log entries yet</p>
+    <p class="text-sm text-muted mt-1">Run a scan from the Dashboard to see activity here.</p>
+  </div>
+  {% else %}
+  <div class="w-full mt-3 card overflow-hidden">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="border-b border-border">
+          <th class="px-4 py-2.5 text-left text-[10px] font-medium text-muted uppercase tracking-wider w-20">Time</th>
+          <th class="px-3 py-2.5 text-left text-[10px] font-medium text-muted uppercase tracking-wider w-16">Source</th>
+          <th class="px-3 py-2.5 text-left text-[10px] font-medium text-muted uppercase tracking-wider w-16">Level</th>
+          <th class="px-4 py-2.5 text-left text-[10px] font-medium text-muted uppercase tracking-wider">Message</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in entries %}
+        {% set lvl_cls = level_class.get(entry.level, 'text-gray-300') %}
+        <tr class="border-b border-border/30 last:border-0 hover:bg-white/[0.02] transition-colors"
+            x-show="filter === 'all'
+                 || filter === '{{ entry.name }}'
+                 || filter === '{{ entry.level }}'
+                 || (filter === 'WARNING' && '{{ entry.level }}' === 'WARNING')
+                 || (filter === 'ERROR'   && ('{{ entry.level }}' === 'ERROR' || '{{ entry.level }}' === 'CRITICAL'))">
+          <td class="px-4 py-1.5 text-[10px] text-muted font-mono whitespace-nowrap align-top">{{ entry.ts }}</td>
+          <td class="px-3 py-1.5 align-top">
+            <span class="pill
+              {% if entry.name == 'espn' %}bg-blue-500/15 text-blue-300 border border-blue-500/20
+              {% elif entry.name == 'main' %}bg-indigo-500/15 text-indigo-300 border border-indigo-500/20
+              {% elif entry.name == 'server' %}bg-purple-500/15 text-purple-300 border border-purple-500/20
+              {% else %}bg-surface text-muted border border-border{% endif %}
+            ">{{ entry.name }}</span>
+          </td>
+          <td class="px-3 py-1.5 text-[10px] font-medium {{ lvl_cls }} whitespace-nowrap align-top">{{ entry.level }}</td>
+          <td class="px-4 py-1.5 text-xs {{ lvl_cls }} leading-relaxed align-top font-mono break-all">{{ entry.msg }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

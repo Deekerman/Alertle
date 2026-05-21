@@ -316,6 +316,15 @@ async def page_settings(request: Request):
     })
 
 
+@app.get("/logs", response_class=HTMLResponse)
+async def page_logs(request: Request):
+    return templates.TemplateResponse(request, "logs.html", {
+        "page": "logs", "version": _VERSION,
+        "entries": list(_scan_log),
+        "level_class": _LEVEL_CLASS,
+    })
+
+
 # ── Partials ───────────────────────────────────────────────────────────────
 
 @app.get("/partial/matches", response_class=HTMLResponse)

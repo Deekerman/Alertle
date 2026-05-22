@@ -44,7 +44,7 @@ info "Python $PY_VER detected"
 # ── System dependencies ────────────────────────────────────────────────────
 header "Installing system packages…"
 apt-get update -qq
-apt-get install -y -qq python3-venv python3-pip
+apt-get install -y -qq python3-venv python3-pip rsync
 success "System packages ready"
 
 # ── Service user ───────────────────────────────────────────────────────────

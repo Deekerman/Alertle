@@ -12,7 +12,7 @@ from pathlib import Path
 import yaml
 
 from epg_scanner import DispatcharrClient
-from matcher import Match, build_subscriptions, find_matches, group_matches
+from matcher import Match, build_subscriptions, find_matches, group_matches, consolidate_notifications
 from notifiers.base import (
     BaseNotifier, DEFAULT_TITLE_TEMPLATE, DEFAULT_BODY_TEMPLATE,
     build_preview_vars, format_grouped_message,
@@ -136,36 +136,59 @@ def run_scan(cfg: dict, notifiers_map: dict[str, BaseNotifier], store: Notificat
                      g.title, t.astimezone().strftime("%-I:%M %p"),
                      g.start.astimezone().strftime("%-I:%M %p"))
 
+    consolidated = consolidate_notifications(grouped, grace_window_minutes=grace)
+    log.info("After consolidation: %d notification groups", len(consolidated))
+
     sent_count = 0
-    for g in grouped:
-        anchor = g.espn_start if g.espn_start else g.start
-        notify_at = anchor - timedelta(minutes=g.subscription.lead_time_minutes)
-        if now < notify_at:
-            mins_until = int((notify_at - now).total_seconds() / 60)
-            log.info("Too early: [%s] '%s' — notify in %dm (at %s%s)",
-                     g.subscription.label, g.title, mins_until,
-                     notify_at.astimezone().strftime("%-I:%M %p"),
-                     " via ESPN" if g.espn_start else "")
+    for primary in consolidated:
+        all_games = [primary] + primary.extra_games
+
+        # Per-game dedup: skip games already sent
+        unsent = [g for g in all_games
+                  if not store.already_sent(g.group_uid, g.subscription.label)]
+        if not unsent:
+            log.info("Already sent: [%s] '%s'", primary.subscription.label, primary.title)
             continue
 
-        if store.already_sent(g.group_uid, g.subscription.label):
-            log.info("Already sent: [%s] '%s'", g.subscription.label, g.title)
+        # Per-game timing: only include games whose notify window has opened
+        ready = []
+        for g in unsent:
+            anchor = g.espn_start if g.espn_start else g.start
+            notify_at = anchor - timedelta(minutes=g.subscription.lead_time_minutes)
+            if now >= notify_at:
+                ready.append(g)
+
+        if not ready:
+            earliest_notify = min(
+                (g.espn_start if g.espn_start else g.start)
+                - timedelta(minutes=g.subscription.lead_time_minutes)
+                for g in unsent
+            )
+            mins_until = int((earliest_notify - now).total_seconds() / 60)
+            log.info("Too early: [%s] '%s' — notify in %dm (at %s)",
+                     primary.subscription.label, primary.title, mins_until,
+                     earliest_notify.astimezone().strftime("%-I:%M %p"))
             continue
 
-        desc_hash = None
-        if desc_dedup and g.description and g.description.strip():
-            desc_hash = hashlib.sha256(g.description.strip().lower().encode()).hexdigest()
-            if store.description_already_sent(desc_hash):
-                log.info("Desc dedup: [%s] '%s' — identical description already sent, suppressing",
-                         g.subscription.label, g.title)
-                continue
+        # Desc dedup: remove games whose description was already sent
+        final_ready = []
+        for g in ready:
+            if desc_dedup and g.description and g.description.strip():
+                desc_hash = hashlib.sha256(g.description.strip().lower().encode()).hexdigest()
+                if store.description_already_sent(desc_hash):
+                    log.info("Desc dedup: [%s] '%s' — suppressed", primary.subscription.label, g.subtitle or g.title)
+                    continue
+            final_ready.append(g)
+
+        if not final_ready:
+            continue
 
         notif_tpl = cfg.get("notification_template", {})
-        title_tpl = g.subscription.notif_title_template or notif_tpl.get("title", DEFAULT_TITLE_TEMPLATE)
-        body_tpl = g.subscription.notif_body_template or notif_tpl.get("body", DEFAULT_BODY_TEMPLATE)
+        title_tpl = primary.subscription.notif_title_template or notif_tpl.get("title", DEFAULT_TITLE_TEMPLATE)
+        body_tpl  = primary.subscription.notif_body_template  or notif_tpl.get("body",  DEFAULT_BODY_TEMPLATE)
         show_nums = notif_tpl.get("show_channel_nums", False)
-        title, body = format_grouped_message(g, title_tpl, body_tpl, show_channel_nums=show_nums)
-        if g.is_replay:
+        title, body = format_grouped_message(final_ready, title_tpl, body_tpl, show_channel_nums=show_nums)
+        if any(g.is_replay for g in final_ready):
             title = f"[REPLAY] {title}"
 
         if dry_run:
@@ -174,8 +197,12 @@ def run_scan(cfg: dict, notifiers_map: dict[str, BaseNotifier], store: Notificat
             print(body)
         else:
             log.info("Sending notification: %s", title)
-            _dispatch(notifiers_map, g.subscription.notify_channels, title, body)
-            store.mark_sent(g.group_uid, g.subscription.label, now.isoformat(), desc_hash)
+            _dispatch(notifiers_map, primary.subscription.notify_channels, title, body)
+            for g in final_ready:
+                desc_hash = None
+                if desc_dedup and g.description and g.description.strip():
+                    desc_hash = hashlib.sha256(g.description.strip().lower().encode()).hexdigest()
+                store.mark_sent(g.group_uid, g.subscription.label, now.isoformat(), desc_hash)
             sent_count += 1
 
     if not dry_run:

@@ -41,13 +41,32 @@ def render_template(template: str, vars_: dict) -> str:
 
 
 def format_grouped_message(
-    g: "GroupedMatch",
+    games: "list[GroupedMatch]",
     title_tpl: str = DEFAULT_TITLE_TEMPLATE,
     body_tpl: str = DEFAULT_BODY_TEMPLATE,
     show_channel_nums: bool = False,
 ) -> tuple[str, str]:
-    vars_ = build_preview_vars(g, show_channel_nums=show_channel_nums)
-    return render_template(title_tpl, vars_), render_template(body_tpl, vars_).rstrip()
+    if len(games) == 1:
+        vars_ = build_preview_vars(games[0], show_channel_nums=show_channel_nums)
+        return render_template(title_tpl, vars_), render_template(body_tpl, vars_).rstrip()
+
+    # Multi-game: title from first game's vars, body lists each game
+    vars_ = build_preview_vars(games[0], show_channel_nums=show_channel_nums)
+    title_str = render_template(title_tpl, vars_) + f" — {len(games)} games"
+
+    lines = []
+    for game in games:
+        local = game.start.astimezone()
+        if show_channel_nums:
+            ch_parts = [f"{n} - {name}" if n else name for n, name in game.channels]
+        else:
+            ch_parts = [name for _, name in game.channels]
+        duration = int((game.stop - game.start).total_seconds() / 60)
+        lines.append(f"• {game.subtitle or game.title}")
+        lines.append(f"  {local.strftime('%-I:%M %p')}  ·  {duration} min  ·  {', '.join(ch_parts)}")
+        lines.append("")
+
+    return title_str, "\n".join(lines).rstrip()
 
 
 class BaseNotifier(ABC):

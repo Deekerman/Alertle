@@ -203,6 +203,7 @@ class GroupedMatch:
     group_uid: str
     is_replay: bool = False
     espn_start: Optional[object] = None
+    extra_games: list["GroupedMatch"] = field(default_factory=list)
 
 
 def build_subscriptions(raw: list[dict], default_lead_time: int) -> list[Subscription]:
@@ -251,7 +252,7 @@ def group_matches(matches: list[Match], grace_window_minutes: int = 20) -> list[
 
     exact: dict[tuple, list[Match]] = defaultdict(list)
     for m in matches:
-        key = (m.programme.title.lower(), m.programme.start, m.subscription.label)
+        key = (m.programme.title.lower(), m.programme.subtitle.lower(), m.programme.start, m.subscription.label)
         exact[key].append(m)
 
     merged: list[list[Match]] = []
@@ -298,6 +299,30 @@ def group_matches(matches: list[Match], grace_window_minutes: int = 20) -> list[
 
     grouped.sort(key=lambda g: g.start)
     return grouped
+
+
+def consolidate_notifications(groups: list[GroupedMatch], grace_window_minutes: int = 20) -> list[GroupedMatch]:
+    """Merge GroupedMatches from the same subscription + time window into one notification.
+
+    Each consolidated entry's extra_games holds the additional games so the
+    formatter can list them all in a single message body.
+    """
+    grace_secs = grace_window_minutes * 60
+    result: list[GroupedMatch] = []
+    for g in groups:
+        placed = False
+        for primary in result:
+            if (
+                primary.subscription.label == g.subscription.label
+                and _titles_related(primary.title, g.title)
+                and abs((primary.start - g.start).total_seconds()) <= grace_secs
+            ):
+                primary.extra_games.append(g)
+                placed = True
+                break
+        if not placed:
+            result.append(g)
+    return result
 
 
 def group_programmes(programmes: list[Programme]) -> list[dict]:

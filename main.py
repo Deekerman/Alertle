@@ -151,10 +151,16 @@ def run_scan(cfg: dict, notifiers_map: dict[str, BaseNotifier], store: Notificat
             continue
 
         # Per-game timing: only include games whose notify window has opened
+        # and whose start time has not yet passed (skip games already in progress)
         ready = []
         for g in unsent:
             anchor = g.espn_start if g.espn_start else g.start
             notify_at = anchor - timedelta(minutes=g.subscription.lead_time_minutes)
+            if now >= anchor:
+                log.info("Game already started, skipping: [%s] '%s' (started %s)",
+                         primary.subscription.label, g.subtitle or g.title,
+                         anchor.astimezone().strftime("%-I:%M %p"))
+                continue
             if now >= notify_at:
                 ready.append(g)
 

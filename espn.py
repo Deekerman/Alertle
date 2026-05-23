@@ -2,6 +2,7 @@
 
 import logging
 import re
+import threading
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -36,6 +37,7 @@ _STOP = {"at", "vs", "the", "city", "fc", "sc", "afc", "nfc", "nfl", "nba",
 
 # Simple TTL cache: key → (fetched_at, data)
 _cache: dict[str, tuple[float, list[dict]]] = {}
+_cache_lock = threading.Lock()
 _CACHE_TTL = 900  # 15 minutes
 
 
@@ -80,11 +82,12 @@ def _fetch_events(sport: str, league: str, date_from: datetime, date_to: datetim
     cache_key = f"{sport}/{league}/{from_s}-{to_s}"
 
     now = time.monotonic()
-    if cache_key in _cache:
-        fetched_at, data = _cache[cache_key]
-        if now - fetched_at < _CACHE_TTL:
-            log.debug("ESPN cache hit: %s/%s (%d events)", sport, league, len(data))
-            return data
+    with _cache_lock:
+        if cache_key in _cache:
+            fetched_at, data = _cache[cache_key]
+            if now - fetched_at < _CACHE_TTL:
+                log.debug("ESPN cache hit: %s/%s (%d events)", sport, league, len(data))
+                return data
 
     url = f"{_ESPN_BASE}/{sport}/{league}/scoreboard"
     log.info("ESPN API request: %s?dates=%s-%s", url, from_s, to_s)
@@ -116,7 +119,8 @@ def _fetch_events(sport: str, league: str, date_from: datetime, date_to: datetim
             "competitors": [n for n in competitor_names if n],
         })
 
-    _cache[cache_key] = (now, events)
+    with _cache_lock:
+        _cache[cache_key] = (now, events)
     log.info("ESPN API response: %s/%s — %d events (%s→%s)", sport, league, len(events), from_s, to_s)
     return events
 

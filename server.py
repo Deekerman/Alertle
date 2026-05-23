@@ -49,6 +49,7 @@ _scan_log: deque[dict] = deque(maxlen=300)
 
 _update_log: deque[dict] = deque(maxlen=200)
 _update_running: bool = False
+_scan_running: bool = False
 _latest_version: Optional[str] = None
 _version_checked_at: Optional[float] = None  # epoch seconds
 _VERSION_CHECK_TTL = 3600  # re-fetch at most once per hour
@@ -609,7 +610,6 @@ async def delete_subscription(request: Request, idx: int):
 async def toggle_subscription(request: Request, idx: int):
     cfg = load_config()
     subs = cfg.get("subscriptions", [])
-    label = ""
     if 0 <= idx < len(subs):
         label = subs[idx].get("label", "")
         current = subs[idx].get("enabled", True)
@@ -807,7 +807,7 @@ async def partial_scan_log():
     body = "\n".join(rows)
     return HTMLResponse(
         f'<table class="w-full">'
-        f'<tbody>{"".join(rows)}</tbody>'
+        f'<tbody>{""join(rows)}</tbody>'
         f'</table>'
     )
 
@@ -854,11 +854,15 @@ async def config_import(config_file: UploadFile = File(...)):
 
 @app.post("/action/scan", response_class=HTMLResponse)
 async def manual_scan(background_tasks: BackgroundTasks):
+    if _scan_running:
+        return HTMLResponse('<span class="text-amber-400 text-sm">Scan already in progress…</span>')
     background_tasks.add_task(_do_scan)
     return HTMLResponse('<span class="text-green-400 text-sm">Scan started…</span>')
 
 
 def _do_scan() -> None:
+    global _scan_running
+    _scan_running = True
     try:
         from main import build_notifiers_map, run_scan
         cfg = load_config()
@@ -866,6 +870,8 @@ def _do_scan() -> None:
         bust_cache()
     except Exception as exc:
         log.error("Scan error: %s", exc, exc_info=True)
+    finally:
+        _scan_running = False
 
 
 # ── Background auto-scanner ───────────────────────────────────────────────
@@ -874,7 +880,7 @@ async def _check_version_task() -> None:
     global _latest_version, _version_checked_at
     try:
         from updater import fetch_latest_version
-        _latest_version = await asyncio.get_event_loop().run_in_executor(None, fetch_latest_version)
+        _latest_version = await asyncio.get_running_loop().run_in_executor(None, fetch_latest_version)
         _version_checked_at = time.monotonic()
     except Exception:
         pass  # silently ignore on startup
@@ -885,8 +891,11 @@ async def _auto_scan_loop():
     while True:
         cfg = load_config()
         interval = cfg.get("poll_interval_seconds", 300)
-        log.info("Auto-scan triggered (interval: %ds)", interval)
-        _do_scan()
+        if _scan_running:
+            log.info("Auto-scan skipped — scan already in progress")
+        else:
+            log.info("Auto-scan triggered (interval: %ds)", interval)
+            await asyncio.get_running_loop().run_in_executor(None, _do_scan)
         await asyncio.sleep(interval)
 
 
@@ -900,7 +909,7 @@ async def api_version():
     if stale:
         try:
             from updater import fetch_latest_version
-            _latest_version = await asyncio.get_event_loop().run_in_executor(None, fetch_latest_version)
+            _latest_version = await asyncio.get_running_loop().run_in_executor(None, fetch_latest_version)
             _version_checked_at = now_mono
         except Exception:
             _latest_version = None

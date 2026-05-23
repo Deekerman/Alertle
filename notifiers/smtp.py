@@ -32,7 +32,7 @@ class SmtpNotifier(BaseNotifier):
         msg["From"] = self.from_addr
         msg["To"] = ", ".join(self.to_addrs)
 
-        with smtplib.SMTP(self.host, self.port) as smtp:
+        with smtplib.SMTP(self.host, self.port, timeout=15) as smtp:
             if self.use_tls:
                 smtp.starttls()
             if self.username:

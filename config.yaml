@@ -2,6 +2,9 @@ dispatcharr:
   # Paste the direct XMLTV URL from your EPG source
   # e.g. http://192.168.1.19:9191/output/epg/Everything
   xmltv_url: ""
+  # Optional: Dispatcharr base URL and API token (if using token-authenticated API)
+  url: ""
+  token: ""
   # EPG lookahead in days (scans from now until now + lookahead_days)
   lookahead_days: 7
 
@@ -71,19 +74,19 @@ notification_endpoints: []
 #   label   – friendly name shown in the notification
 
 subscriptions:
-  - label: "All NFL games"
-    sport: "american football"
+  # - label: "All NFL games"
+  #   sport: "american football"
 
-  - label: "Dallas Cowboys"
-    team: "Cowboys"
+  # - label: "Dallas Cowboys"
+  #   team: "Cowboys"
 
-  - label: "Champions League"
-    keyword: "Champions League"
-    lead_time_minutes: 60
+  # - label: "Champions League"
+  #   keyword: "Champions League"
+  #   lead_time_minutes: 60
 
-  - label: "Toronto Blue Jays"
-    title_pattern: "^MLB Baseball$"
-    subtitle_pattern: "(Toronto Blue Jays at .+|.+ at Toronto Blue Jays)"
+  # - label: "Toronto Blue Jays"
+  #   title_pattern: "^MLB Baseball$"
+  #   subtitle_pattern: "(Toronto Blue Jays at .+|.+ at Toronto Blue Jays)"
 
   # - label: "All Hockey"
   #   sport: "ice hockey"

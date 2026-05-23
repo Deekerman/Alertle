@@ -12,6 +12,7 @@ import logging
 import os
 import signal
 import sys
+import threading
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -165,8 +166,15 @@ templates.env.filters["preview_vars"] = _preview_vars_filter
 # ── Config helpers ─────────────────────────────────────────────────────────
 
 def load_config() -> dict:
-    with open(CONFIG_PATH) as f:
-        return yaml.safe_load(f) or {}
+    try:
+        with open(CONFIG_PATH) as f:
+            return yaml.safe_load(f) or {}
+    except yaml.YAMLError as exc:
+        log.error("Config parse error: %s", exc)
+        return {}
+    except OSError as exc:
+        log.error("Config read error: %s", exc)
+        return {}
 
 
 def save_config(cfg: dict) -> None:
@@ -265,6 +273,7 @@ def _send_to_channels_legacy(title: str, body: str, channels: list[str], cfg: di
 # ── EPG cache ─────────────────────────────────────────────────────────────
 
 _epg_cache: Optional[tuple[float, list[Programme]]] = None
+_epg_cache_lock = threading.Lock()
 
 
 def make_client(cfg: dict) -> DispatcharrClient:
@@ -276,20 +285,23 @@ def get_programmes(cfg: dict) -> list[Programme]:
     global _epg_cache
     now = time.monotonic()
     cache_ttl = cfg.get("epg_cache_hours", 1) * 3600
-    if _epg_cache and (now - _epg_cache[0]) < cache_ttl:
-        return _epg_cache[1]
+    with _epg_cache_lock:
+        if _epg_cache and (now - _epg_cache[0]) < cache_ttl:
+            return _epg_cache[1]
     d = cfg["dispatcharr"]
     client = make_client(cfg)
     dt_now = datetime.now(timezone.utc)
     end = dt_now + timedelta(days=d.get("lookahead_days", 7))
     programmes = client.fetch_programmes(dt_now, end)
-    _epg_cache = (now, programmes)
+    with _epg_cache_lock:
+        _epg_cache = (now, programmes)
     return programmes
 
 
 def bust_cache() -> None:
     global _epg_cache
-    _epg_cache = None
+    with _epg_cache_lock:
+        _epg_cache = None
 
 
 # ── Pages ──────────────────────────────────────────────────────────────────

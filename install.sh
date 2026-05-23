@@ -145,6 +145,10 @@ success "Service enabled and started"
 # ── Cron job (optional — only needed for headless / no-web-UI operation) ───
 if [[ -n "$SCAN_CRON" ]]; then
   header "Installing cron job…"
+  if ! [[ "$SCAN_CRON" =~ ^[0-9*/,\-]+[[:space:]]+[0-9*/,\-]+[[:space:]]+[0-9*/,\-]+[[:space:]]+[0-9*/,\-]+[[:space:]]+[0-9*/,\-]+$ ]]; then
+    echo "ERROR: SCAN_CRON contains invalid characters: $SCAN_CRON" >&2
+    exit 1
+  fi
   CRON_CMD="$SCAN_CRON $SERVICE_USER $VENV/bin/python $INSTALL_DIR/main.py >> /var/log/alertle-scan.log 2>&1"
   CRON_FILE="/etc/cron.d/alertle"
 

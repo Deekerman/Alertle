@@ -97,9 +97,9 @@
             type="button"
             class="btn-ghost text-xs py-1 px-2 opacity-0 group-hover:opacity-100"
             @click="$store.subPanel.fill({
-              label: {{ g.title|tojson }},
-              sport: {{ g.sport_hint|tojson }},
-              channel: {{ g.channel_hint|tojson }},
+              label: {{ g.title|tojson|e }},
+              sport: {{ g.sport_hint|tojson|e }},
+              channel: {{ g.channel_hint|tojson|e }},
               team: '', keyword: '', lead: ''
             })"
           >

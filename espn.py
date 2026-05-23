@@ -195,7 +195,7 @@ def check_replay(epg_title: str, epg_start: datetime, categories: list[str],
         close_live = [
             ev for ev in matched
             if ev["state"] in ("pre", "in")
-            and (ev["date"] - epg_start).total_seconds() <= 2 * 3600
+            and abs((ev["date"] - epg_start).total_seconds()) <= 2 * 3600
         ]
         if close_live:
             closest_live = min(

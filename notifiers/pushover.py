@@ -21,6 +21,10 @@ class PushoverNotifier(BaseNotifier):
             "message": body,
             "priority": self.priority,
         }
-        resp = requests.post(PUSHOVER_API, data=payload, timeout=15)
-        resp.raise_for_status()
+        try:
+            resp = requests.post(PUSHOVER_API, data=payload, timeout=15)
+            resp.raise_for_status()
+        except requests.RequestException as exc:
+            log.error("Pushover notification failed: %s", exc)
+            return
         log.info("Pushover notification sent: %s", title)

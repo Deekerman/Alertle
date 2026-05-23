@@ -608,7 +608,7 @@ async def delete_subscription(request: Request, idx: int):
 
 @app.post("/partial/subscriptions/{idx}/toggle", response_class=HTMLResponse)
 async def toggle_subscription(request: Request, idx: int):
-    cfg = load_config()
+    cfg = load_config()    
     subs = cfg.get("subscriptions", [])
     if 0 <= idx < len(subs):
         label = subs[idx].get("label", "")
@@ -804,10 +804,9 @@ async def partial_scan_log():
             f'<td class="px-4 py-1.5 text-xs {cls} leading-relaxed">{html.escape(entry["msg"])}</td>'
             f'</tr>'
         )
-    body = "\n".join(rows)
     return HTMLResponse(
         f'<table class="w-full">'
-        f'<tbody>{""join(rows)}</tbody>'
+        f'<tbody>{"" .join(rows)}</tbody>'
         f'</table>'
     )
 

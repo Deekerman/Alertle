@@ -9,6 +9,8 @@ from contextlib import asynccontextmanager
 import html
 import json
 import logging
+import os
+import signal
 import sys
 import time
 from datetime import datetime, timedelta, timezone
@@ -42,6 +44,14 @@ _VERSION = _VERSION_FILE.read_text().strip() if _VERSION_FILE.exists() else "dev
 # ── In-memory scan log ─────────────────────────────────────────────────────
 
 _scan_log: deque[dict] = deque(maxlen=300)
+
+# ── Update state ───────────────────────────────────────────────────────────
+
+_update_log: deque[dict] = deque(maxlen=200)
+_update_running: bool = False
+_latest_version: Optional[str] = None
+_version_checked_at: Optional[float] = None  # epoch seconds
+_VERSION_CHECK_TTL = 3600  # re-fetch at most once per hour
 
 _LEVEL_CLASS = {
     "DEBUG":    "text-gray-500",
@@ -109,6 +119,7 @@ log = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app):
     asyncio.create_task(_auto_scan_loop())
+    asyncio.create_task(_check_version_task())
     yield
 
 
@@ -859,6 +870,16 @@ def _do_scan() -> None:
 
 # ── Background auto-scanner ───────────────────────────────────────────────
 
+async def _check_version_task() -> None:
+    global _latest_version, _version_checked_at
+    try:
+        from updater import fetch_latest_version
+        _latest_version = await asyncio.get_event_loop().run_in_executor(None, fetch_latest_version)
+        _version_checked_at = time.monotonic()
+    except Exception:
+        pass  # silently ignore on startup
+
+
 async def _auto_scan_loop():
     await asyncio.sleep(15)  # brief delay to let the server finish starting up
     while True:
@@ -867,6 +888,75 @@ async def _auto_scan_loop():
         log.info("Auto-scan triggered (interval: %ds)", interval)
         _do_scan()
         await asyncio.sleep(interval)
+
+
+# ── Version check & updater ───────────────────────────────────────────────
+
+@app.get("/api/version")
+async def api_version():
+    global _latest_version, _version_checked_at
+    now_mono = time.monotonic()
+    stale = _version_checked_at is None or (now_mono - _version_checked_at) > _VERSION_CHECK_TTL
+    if stale:
+        try:
+            from updater import fetch_latest_version
+            _latest_version = await asyncio.get_event_loop().run_in_executor(None, fetch_latest_version)
+            _version_checked_at = now_mono
+        except Exception:
+            _latest_version = None
+    latest = _latest_version
+    update_available = bool(latest and latest != _VERSION)
+    return {"current": _VERSION, "latest": latest, "update_available": update_available}
+
+
+def _ulog(msg: str) -> None:
+    _update_log.appendleft({
+        "ts":  datetime.now().strftime("%H:%M:%S"),
+        "msg": msg,
+    })
+    log.info("[updater] %s", msg)
+
+
+def _run_update() -> None:
+    global _update_running
+    try:
+        from updater import apply_update
+        apply_update(ROOT, ROOT / ".venv", log_fn=_ulog)
+        os.kill(os.getpid(), signal.SIGTERM)
+    except Exception as exc:
+        _ulog(f"ERROR: {exc}")
+        log.error("Update failed: %s", exc, exc_info=True)
+    finally:
+        _update_running = False
+
+
+@app.post("/action/update")
+async def action_update(background_tasks: BackgroundTasks):
+    global _update_running
+    if _update_running:
+        return Response(status_code=409, headers={"X-Toast": "Update already in progress"})
+    _update_running = True
+    _update_log.clear()
+    background_tasks.add_task(_run_update)
+    return Response(headers={"X-Toast": "Update started — the service will restart when done"})
+
+
+@app.get("/partial/update-log", response_class=HTMLResponse)
+async def partial_update_log():
+    if not _update_log:
+        status = "running…" if _update_running else "idle"
+        return HTMLResponse(
+            f'<p class="text-xs text-muted text-center py-4">No update activity ({status})</p>'
+        )
+    rows = []
+    for entry in reversed(list(_update_log)):
+        rows.append(
+            f'<div class="text-xs font-mono py-0.5">'
+            f'<span class="text-muted/60 mr-2">{html.escape(entry["ts"])}</span>'
+            f'<span class="text-gray-300">{html.escape(entry["msg"])}</span>'
+            f'</div>'
+        )
+    return HTMLResponse("\n".join(rows))
 
 
 # ── Entry point ────────────────────────────────────────────────────────────

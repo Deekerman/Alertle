@@ -135,7 +135,7 @@ class Subscription:
             if not _has_sport_category(prog):
                 return False
 
-        # ── Team matching ──────────────────────────────────────────────
+        # ── Team matching ───────────────────────────────────────────────
         if self.team:
             team_l = self.team.lower()
             teams = extract_teams(prog.title)
@@ -150,13 +150,13 @@ class Subscription:
                 if team_l not in f"{prog.title} {prog.description}".lower():
                     return False
 
-        # ── Channel matching ───────────────────────────────────────────
+        # ── Channel matching ───────────────────────────────────────────────
         if self.channel:
             ch = self.channel.lower()
             if ch not in prog.channel_name.lower() and ch not in prog.channel_id.lower():
                 return False
 
-        # ── Text-based checks ─────────────────────────────────────────
+        # ── Text-based checks ─────────────────────────────────────────────
         if self.keyword:
             text = f"{prog.title} {prog.description}".lower()
             if self.keyword.lower() not in text:
@@ -294,7 +294,7 @@ def group_matches(matches: list[Match], grace_window_minutes: int = 20) -> list[
             categories=cats,
             channels=channels,
             subscription=ms[0].subscription,
-            group_uid=f"{main_title.lower()}|{earliest_start.replace(second=0,microsecond=0).isoformat()}",
+            group_uid=f"{main_title.lower()}|{subtitle.lower()}|{earliest_start.replace(second=0,microsecond=0).isoformat()}",
         ))
 
     grouped.sort(key=lambda g: g.start)

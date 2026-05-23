@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import shutil
 import subprocess
 import sys
 import tarfile
@@ -56,7 +55,10 @@ def apply_update(
         _log("Download complete. Extracting…")
 
         with tarfile.open(tarball, "r:gz") as tf:
-            tf.extractall(tmp_path)
+            # filter='data' strips unsafe members (absolute paths, device files);
+            # available in 3.12+, silently ignored on older versions via getattr
+            kwargs = {"filter": "data"} if hasattr(tarfile.TarFile, "extraction_filter") else {}
+            tf.extractall(tmp_path, **kwargs)
 
         # GitHub tarballs extract to a single top-level directory like Alertle-main/
         extracted_dirs = [d for d in tmp_path.iterdir() if d.is_dir() and d.name != "__MACOSX"]

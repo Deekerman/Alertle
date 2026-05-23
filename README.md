@@ -4,9 +4,10 @@
   <img src="alertle_turtle.png" alt="Alertle Turtle" width="300"/>
 </p>
 
+
 ### *He's slow. Your alerts aren't.*
 
-Alertle is a self-hosted sports notification app that scans your EPG for the week ahead, and fires off alerts when something you care about is on — before you miss the puck drop.
+Alertle is a self-hosted EPG monitoring and alert system. Built for sports fans, but flexible enough to notify you about any programming you care about.
 
 ---
 
@@ -39,7 +40,7 @@ If it works, great. If something breaks, that's also the vibes. PRs are welcome.
 ## Notification Channels
 
 | Channel | What it does |
-|---|---|
+| --------------- | ---------------------------------------------------------------------------- |
 | 💬 **Discord** | Posts to a channel via webhook — great for household or friend group servers |
 | ✈️ **Telegram** | Direct messages or group chat via a bot |
 | 📲 **Pushover** | Push notifications straight to your phone or desktop |
@@ -50,7 +51,7 @@ Configure your preferred channels in the **Notifications** tab of the web UI.
 
 ## Requirements
 
-- Node.js 18+
+- Python 3.9+
 - A running [Dispatcharr](https://github.com/Dispatcharr/Dispatcharr) instance with EPG sources configured and matched to channels
 
 ---
@@ -58,12 +59,14 @@ Configure your preferred channels in the **Notifications** tab of the web UI.
 ## Quick Start
 
 ```bash
-git clone https://github.com/Deekerman/alertle.git
-cd alertle
-python3 server.py
+git clone https://github.com/Deekerman/Alertle.git
+cd Alertle
+sudo bash install.sh
 ```
 
 Open **http://localhost:8888** — the Alertle Turtle will be waiting.
+
+> The installer handles everything: Python dependencies, a dedicated service user, and a systemd service that starts automatically on boot.
 
 ---
 
@@ -71,7 +74,7 @@ Open **http://localhost:8888** — the Alertle Turtle will be waiting.
 
 ### 1. Connect to Dispatcharr
 
-- Enter your Dispatcharr EPG URL
+- Enter your Dispatcharr EPG URL in the **Settings** tab
 
 ### 2. Configure Notifications
 
@@ -88,7 +91,7 @@ Head to the **Notifications** tab and set up whichever channels you want:
 Rules tell Alertle what to watch for:
 
 | Rule type | Matches against | Example |
-|---|---|---|
+| -------------------- | --------------------------- | ------------------------------------- |
 | **Sport / category** | EPG category + title | `hockey`, `NFL`, `soccer` |
 | **Team name** | Program title + description | `Toronto Maple Leafs`, `Blue Jays` |
 | **Program title** | Substring match on title | `NHL on CBC`, `Monday Night Football` |
@@ -105,53 +108,39 @@ Hit **Scan now** to immediately check all programs against your active rules. Ma
 
 ---
 
-## Run on Startup
-
-Create `/etc/systemd/system/alertle.service`:
-
-```ini
-[Unit]
-Description=Alertle — Sports Alerts by Turtle
-After=network.target
-
-[Service]
-WorkingDirectory=/path/to/alertle
-ExecStart=/usr/bin/node server.js
-Restart=on-failure
-User=your-user
-Environment=PORT=8888
-
-[Install]
-WantedBy=multi-user.target
-```
-
-```bash
-sudo systemctl enable --now alertle
-```
-
----
-
 ## Data Files
 
 | File | Purpose |
-|---|---|
-| `config.json` | Connection settings and notification config |
-| `rules.json` | Your saved notification rules |
-| `sent_notifications.json` | Dedup log — auto-managed, don't stress about it |
+| ------------- | ----------------------------------------------- |
+| `config.yaml` | Connection settings and notification config |
+| `alertle.db` | Rules and sent notification history — auto-managed |
 
-Everything is created automatically on first save. No manual setup required.
+Everything is created automatically on first run. No manual setup required.
+
+---
+
+## Useful Commands
+
+```bash
+# View live logs
+journalctl -u alertle -f
+
+# Restart the service
+systemctl restart alertle
+
+# Stop the service
+systemctl stop alertle
+```
 
 ---
 
 ## Troubleshooting
 
-**"Dispatcharr not configured"** — Save your URL and API key on the Connection tab first, then try again.
-
-**No programs returned** — Make sure Dispatcharr has EPG sources configured and matched to channels. You can poke the API directly at `http://your-dispatcharr:9191/swagger/` → `GET /api/epg/programs/` to see what's there.
+**No programs returned** — Make sure Dispatcharr has EPG sources configured and matched to channels. You can check the API directly at `http://your-dispatcharr:9191/swagger/` → `GET /api/epg/programs/` to see what's there.
 
 **Notifications not arriving** — Use the **Send test** button on each channel to isolate the issue. Check that your Discord webhook URL is correct, your Pushover keys are valid, and that your Telegram bot has been started (send it `/start` first).
 
-**Something strange is happening** — Vibe coded. Try restarting the server, or explain the problem to an AI. That's how all of this got built anyway.
+**Something strange is happening** — Vibe coded. Try restarting the service, or explain the problem to an AI. That's how all of this got built anyway.
 
 ---
 

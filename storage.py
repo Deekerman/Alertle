@@ -1,8 +1,11 @@
 """SQLite-backed store for tracking which events have already been notified."""
 
+import logging
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
+
+log = logging.getLogger(__name__)
 
 
 class NotificationStore:
@@ -35,8 +38,10 @@ class NotificationStore:
             # Migration for existing installs
             try:
                 conn.execute("ALTER TABLE sent ADD COLUMN description_hash TEXT")
-            except Exception:
+            except sqlite3.OperationalError:
                 pass  # column already exists
+            except Exception as exc:
+                log.warning("DB migration failed: %s", exc)
 
     def already_sent(self, uid: str, subscription_label: str) -> bool:
         with self._conn() as conn:

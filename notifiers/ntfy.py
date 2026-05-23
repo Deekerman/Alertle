@@ -14,6 +14,10 @@ class NtfyNotifier(BaseNotifier):
         headers = {"Title": title}
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
-        resp = requests.post(self.endpoint, data=body.encode(), headers=headers, timeout=15)
-        resp.raise_for_status()
+        try:
+            resp = requests.post(self.endpoint, data=body.encode(), headers=headers, timeout=15)
+            resp.raise_for_status()
+        except requests.RequestException as exc:
+            log.error("Ntfy notification failed: %s", exc)
+            return
         log.info("Ntfy notification sent: %s", title)

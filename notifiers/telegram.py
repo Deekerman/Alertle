@@ -14,10 +14,14 @@ class TelegramNotifier(BaseNotifier):
     def send(self, title: str, body: str) -> None:
         text = f"<b>{html.escape(title)}</b>\n{html.escape(body)}"
         url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
-        resp = requests.post(
-            url,
-            json={"chat_id": self.chat_id, "text": text, "parse_mode": "HTML"},
-            timeout=15,
-        )
-        resp.raise_for_status()
+        try:
+            resp = requests.post(
+                url,
+                json={"chat_id": self.chat_id, "text": text, "parse_mode": "HTML"},
+                timeout=15,
+            )
+            resp.raise_for_status()
+        except requests.RequestException as exc:
+            log.error("Telegram notification failed: %s", exc)
+            return
         log.info("Telegram notification sent: %s", title)

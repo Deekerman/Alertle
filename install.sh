@@ -25,7 +25,7 @@ SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # ── Pre-flight ─────────────────────────────────────────────────────────────
 header "Alertle installer"
 
-[[ "$EUID" -eq 0 ]] || die "Please run as root: sudo bash install.sh"
+[[  "$EUID" -eq 0 ]] || die "Please run as root: sudo bash install.sh"
 
 if ! grep -qiE 'debian|ubuntu|raspbian' /etc/os-release 2>/dev/null; then
   warn "This script targets Debian/Ubuntu. Proceeding anyway…"

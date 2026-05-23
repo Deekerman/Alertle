@@ -818,7 +818,7 @@ async def partial_scan_log():
         )
     return HTMLResponse(
         f'<table class="w-full">'
-        f'<tbody>{"" .join(rows)}</tbody>'
+        f'<tbody>{"".join(rows)}</tbody>'
         f'</table>'
     )
 

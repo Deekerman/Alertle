@@ -34,7 +34,7 @@ def extract_teams(title: str) -> tuple[str, str] | None:
 
 
 def _title_sig_words(title: str) -> frozenset[str]:
-    """Significant words from a title (length ≥ 3, not stop words)."""
+    """Significant words from a title (length >= 3, not stop words)."""
     words = re.findall(r"[a-z0-9']{3,}", title.lower())
     return frozenset(w for w in words if w not in _STOP_WORDS)
 
@@ -77,7 +77,7 @@ def _safe_match(pattern: re.Pattern, text: str, label: str) -> bool:
     try:
         return bool(future.result(timeout=1.0))
     except concurrent.futures.TimeoutError:
-        log.warning("Regex timeout in subscription '%s' — pattern may cause ReDoS", label)
+        log.warning("Regex timeout in subscription '%s' -- pattern may cause ReDoS", label)
         return False
     except Exception as exc:
         log.warning("Regex error in subscription '%s': %s", label, exc)
@@ -91,14 +91,14 @@ class Subscription:
     team: Optional[str] = None
     keyword: Optional[str] = None
     channel: Optional[str] = None
-    title_pattern: Optional[str] = None    # regex matched against programme title only
-    subtitle_pattern: Optional[str] = None # regex matched against programme sub-title only
-    desc_pattern: Optional[str] = None     # regex matched against programme description only
+    title_pattern: Optional[str] = None
+    subtitle_pattern: Optional[str] = None
+    desc_pattern: Optional[str] = None
     exclude: list[str] = field(default_factory=list)
     require_sport: bool = False
     lead_time_minutes: int = 30
-    notify_channels: list[str] = field(default_factory=list)  # empty = all enabled
-    notif_title_template: Optional[str] = None  # None = use global default
+    notify_channels: list[str] = field(default_factory=list)
+    notif_title_template: Optional[str] = None
     notif_body_template: Optional[str] = None
     espn_sport: Optional[str] = None
     espn_league: Optional[str] = None
@@ -124,39 +124,31 @@ class Subscription:
             return None
 
     def matches(self, prog: Programme) -> bool:
-        # ── Category / sport checks (no text building needed) ──────────
         if self.sport:
             if not any(self.sport.lower() in cat.lower() for cat in prog.categories):
                 return False
 
-        # require_sport only adds value for keyword/channel/pattern subs;
-        # team matching already enforces sport category for non-vs titles.
         if self.require_sport and not self.sport and not self.team:
             if not _has_sport_category(prog):
                 return False
 
-        # ── Team matching ───────────────────────────────────────────────
         if self.team:
             team_l = self.team.lower()
             teams = extract_teams(prog.title)
             if teams:
-                # "A vs B" title — team must be one of the two sides
                 if not any(team_l in t.lower() for t in teams):
                     return False
             else:
-                # Non-vs title — require sport category to avoid reality shows etc.
                 if not _has_sport_category(prog):
                     return False
                 if team_l not in f"{prog.title} {prog.description}".lower():
                     return False
 
-        # ── Channel matching ───────────────────────────────────────────────
         if self.channel:
             ch = self.channel.lower()
             if ch not in prog.channel_name.lower() and ch not in prog.channel_id.lower():
                 return False
 
-        # ── Text-based checks ─────────────────────────────────────────────
         if self.keyword:
             text = f"{prog.title} {prog.description}".lower()
             if self.keyword.lower() not in text:
@@ -208,7 +200,7 @@ class GroupedMatch:
 
 def build_subscriptions(raw: list[dict], default_lead_time: int) -> list[Subscription]:
     subs: list[Subscription] = []
-    for entry in raw:
+    for entry in (raw or []):
         exclude_raw = entry.get("exclude", [])
         if isinstance(exclude_raw, str):
             exclude_raw = [x.strip() for x in exclude_raw.split(",") if x.strip()]
@@ -247,7 +239,7 @@ def find_matches(programmes: list[Programme], subscriptions: list[Subscription])
 
 
 def group_matches(matches: list[Match], grace_window_minutes: int = 20) -> list[GroupedMatch]:
-    """Collapse matches for the same event (same start ± grace window + related title) into one GroupedMatch."""
+    """Collapse matches for the same event (same start +/- grace window + related title) into one GroupedMatch."""
     grace_secs = grace_window_minutes * 60
 
     exact: dict[tuple, list[Match]] = defaultdict(list)

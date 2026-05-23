@@ -681,7 +681,7 @@ async def save_settings(request: Request):
 async def test_notification(channel: str):
     cfg = load_config()
     errors = _send_to_channels(
-        "Alertle — Test",
+        "Alertle - Test",
         "This is a test notification from Alertle.",
         [channel], cfg,
     )
@@ -855,9 +855,9 @@ async def config_import(config_file: UploadFile = File(...)):
 @app.post("/action/scan", response_class=HTMLResponse)
 async def manual_scan(background_tasks: BackgroundTasks):
     if _scan_running:
-        return HTMLResponse('<span class="text-amber-400 text-sm">Scan already in progress…</span>')
+        return HTMLResponse('<span class="text-amber-400 text-sm">Scan already in progress...</span>')
     background_tasks.add_task(_do_scan)
-    return HTMLResponse('<span class="text-green-400 text-sm">Scan started…</span>')
+    return HTMLResponse('<span class="text-green-400 text-sm">Scan started...</span>')
 
 
 def _do_scan() -> None:
@@ -892,7 +892,7 @@ async def _auto_scan_loop():
         cfg = load_config()
         interval = cfg.get("poll_interval_seconds", 300)
         if _scan_running:
-            log.info("Auto-scan skipped — scan already in progress")
+            log.info("Auto-scan skipped - scan already in progress")
         else:
             log.info("Auto-scan triggered (interval: %ds)", interval)
             await asyncio.get_running_loop().run_in_executor(None, _do_scan)
@@ -947,13 +947,13 @@ async def action_update(background_tasks: BackgroundTasks):
     _update_running = True
     _update_log.clear()
     background_tasks.add_task(_run_update)
-    return Response(headers={"X-Toast": "Update started — the service will restart when done"})
+    return Response(headers={"X-Toast": "Update started - the service will restart when done"})
 
 
 @app.get("/partial/update-log", response_class=HTMLResponse)
 async def partial_update_log():
     if not _update_log:
-        status = "running…" if _update_running else "idle"
+        status = "running..." if _update_running else "idle"
         return HTMLResponse(
             f'<p class="text-xs text-muted text-center py-4">No update activity ({status})</p>'
         )

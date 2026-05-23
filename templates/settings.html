@@ -370,7 +370,6 @@
         <div
           id="update-log"
           hx-get="/partial/update-log"
-          hx-trigger="every 1500ms"
           hx-swap="innerHTML"
         ></div>
       </div>
@@ -428,7 +427,9 @@
     document.getElementById('update-btn').disabled = true;
     document.getElementById('update-log-wrap').classList.remove('hidden');
     await fetch('/action/update', { method: 'POST' });
-    htmx.trigger('#update-log', 'htmx:load');
+    const el = document.getElementById('update-log');
+    el.setAttribute('hx-trigger', 'every 1500ms');
+    htmx.process(el);
   }
 
   // Check version on page load

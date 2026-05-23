@@ -22,7 +22,7 @@ from storage import NotificationStore
 log = logging.getLogger(__name__)
 
 
-# ── Config loading ─────────────────────────────────────────────────────────
+# ── Config loading ──────────────────────────────────────────────────────────────────
 
 def load_config(path: str) -> dict:
     with open(path) as f:
@@ -85,7 +85,7 @@ def build_notifiers(cfg: dict) -> list[BaseNotifier]:
     return list(build_notifiers_map(cfg).values())
 
 
-# ── Core scan logic ────────────────────────────────────────────────────────
+# ── Core scan logic ─────────────────────────────────────────────────────────────────
 
 def run_scan(cfg: dict, notifiers_map: dict[str, BaseNotifier], store: NotificationStore, dry_run: bool):
     dispatcharr = cfg.get("dispatcharr", {})
@@ -165,15 +165,18 @@ def run_scan(cfg: dict, notifiers_map: dict[str, BaseNotifier], store: Notificat
                 ready.append(g)
 
         if not ready:
-            earliest_notify = min(
-                (g.espn_start if g.espn_start else g.start)
-                - timedelta(minutes=g.subscription.lead_time_minutes)
-                for g in unsent
-            )
-            mins_until = int((earliest_notify - now).total_seconds() / 60)
-            log.info("Too early: [%s] '%s' — notify in %dm (at %s)",
-                     primary.subscription.label, primary.title, mins_until,
-                     earliest_notify.astimezone().strftime("%-I:%M %p"))
+            # Only log "too early" for games that haven't started yet
+            pending = [g for g in unsent if now < (g.espn_start if g.espn_start else g.start)]
+            if pending:
+                earliest_notify = min(
+                    (g.espn_start if g.espn_start else g.start)
+                    - timedelta(minutes=g.subscription.lead_time_minutes)
+                    for g in pending
+                )
+                mins_until = int((earliest_notify - now).total_seconds() / 60)
+                log.info("Too early: [%s] '%s' — notify in %dm (at %s)",
+                         primary.subscription.label, primary.title, mins_until,
+                         earliest_notify.astimezone().strftime("%-I:%M %p"))
             continue
 
         # Desc dedup: remove games whose description was already sent
@@ -227,7 +230,7 @@ def _dispatch(notifiers_map: dict[str, BaseNotifier], sub_channels: list[str], t
             log.error("Notifier %s failed: %s", key, exc)
 
 
-# ── CLI ────────────────────────────────────────────────────────────────────
+# ── CLI ──────────────────────────────────────────────────────────────────────────────
 
 def main():
     parser = argparse.ArgumentParser(description="EPG sports/game notifier for Dispatcharr")

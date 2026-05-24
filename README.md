@@ -136,10 +136,6 @@ systemctl stop alertle
 
 ## Troubleshooting
 
-**No programs returned** — Make sure Dispatcharr has EPG sources configured and matched to channels. You can check the API directly at `http://your-dispatcharr:9191/swagger/` → `GET /api/epg/programs/` to see what's there.
-
-**Notifications not arriving** — Use the **Send test** button on each channel to isolate the issue. Check that your Discord webhook URL is correct, your Pushover keys are valid, and that your Telegram bot has been started (send it `/start` first).
-
 **Something strange is happening** — Vibe coded. Try restarting the service, or explain the problem to an AI. That's how all of this got built anyway.
 
 ---

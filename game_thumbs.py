@@ -38,13 +38,8 @@ def _to_pascal(name: str) -> str:
 
 def _build_url(league_code: str, away: str, home: str, image_type: str, style: str) -> str:
     if image_type == "cover":
-        filename, logo = "cover.png", "false"
-    else:
-        filename, logo = "logo.png", "true"
-    return (
-        f"{GAME_THUMBS_BASE}/{league_code}/{away}/{home}"
-        f"/{filename}?style={style}&logo={logo}&aspect=16-9"
-    )
+        return f"{GAME_THUMBS_BASE}/{league_code}/{away}/{home}/cover.png?style={style}"
+    return f"{GAME_THUMBS_BASE}/{league_code}/{away}/{home}/logo.png?style={style}&logo=true&aspect=16-9"
 
 
 def build_thumb_url(game: "GroupedMatch", cfg: dict) -> str:

@@ -207,11 +207,11 @@ def _notif_template(cfg: dict) -> dict:
     }
 
 
-def _send_to_channels(title: str, body: str, channels: list[str], cfg: dict) -> list[str]:
+def _send_to_channels(title: str, body: str, channels: list[str], cfg: dict, thumb_url: str = "") -> list[str]:
     """Send to specified endpoint IDs (empty = all). Returns error strings."""
     endpoints = cfg.get("notification_endpoints", [])
     if not endpoints:
-        return _send_to_channels_legacy(title, body, channels, cfg)
+        return _send_to_channels_legacy(title, body, channels, cfg, thumb_url=thumb_url)
     targets = endpoints if not channels else [ep for ep in endpoints if ep.get("id") in channels]
     errors = []
     for ep in targets:
@@ -220,22 +220,22 @@ def _send_to_channels(title: str, body: str, channels: list[str], cfg: dict) -> 
             t = ep.get("type", "")
             if t == "telegram":
                 from notifiers.telegram import TelegramNotifier
-                TelegramNotifier(ep["bot_token"], str(ep["chat_id"])).send(title, body)
+                TelegramNotifier(ep["bot_token"], str(ep["chat_id"])).send(title, body, thumb_url=thumb_url)
             elif t == "pushover":
                 from notifiers.pushover import PushoverNotifier
-                PushoverNotifier(ep["app_token"], ep["user_key"]).send(title, body)
+                PushoverNotifier(ep["app_token"], ep["user_key"]).send(title, body, thumb_url=thumb_url)
             elif t == "ntfy":
                 from notifiers.ntfy import NtfyNotifier
-                NtfyNotifier(ep["url"], ep["topic"], ep.get("token", "")).send(title, body)
+                NtfyNotifier(ep["url"], ep["topic"], ep.get("token", "")).send(title, body, thumb_url=thumb_url)
             elif t == "discord":
                 from notifiers.discord import DiscordNotifier
-                DiscordNotifier(ep["webhook_url"]).send(title, body)
+                DiscordNotifier(ep["webhook_url"]).send(title, body, thumb_url=thumb_url)
         except Exception as exc:
             errors.append(f"{ep_id}: {exc}")
     return errors
 
 
-def _send_to_channels_legacy(title: str, body: str, channels: list[str], cfg: dict) -> list[str]:
+def _send_to_channels_legacy(title: str, body: str, channels: list[str], cfg: dict, thumb_url: str = "") -> list[str]:
     _LEGACY = [("telegram", "Telegram"), ("pushover", "Pushover"), ("ntfy", "Ntfy"), ("discord", "Discord")]
     n = cfg.get("notifications", {})
     all_enabled = [k for k, _ in _LEGACY if n.get(k, {}).get("enabled")]
@@ -246,18 +246,18 @@ def _send_to_channels_legacy(title: str, body: str, channels: list[str], cfg: di
             if ch == "telegram":
                 from notifiers.telegram import TelegramNotifier
                 t = n["telegram"]
-                TelegramNotifier(t["bot_token"], str(t["chat_id"])).send(title, body)
+                TelegramNotifier(t["bot_token"], str(t["chat_id"])).send(title, body, thumb_url=thumb_url)
             elif ch == "pushover":
                 from notifiers.pushover import PushoverNotifier
                 p = n["pushover"]
-                PushoverNotifier(p["app_token"], p["user_key"]).send(title, body)
+                PushoverNotifier(p["app_token"], p["user_key"]).send(title, body, thumb_url=thumb_url)
             elif ch == "ntfy":
                 from notifiers.ntfy import NtfyNotifier
                 nt = n["ntfy"]
-                NtfyNotifier(nt["url"], nt["topic"], nt.get("token", "")).send(title, body)
+                NtfyNotifier(nt["url"], nt["topic"], nt.get("token", "")).send(title, body, thumb_url=thumb_url)
             elif ch == "discord":
                 from notifiers.discord import DiscordNotifier
-                DiscordNotifier(n["discord"]["webhook_url"]).send(title, body)
+                DiscordNotifier(n["discord"]["webhook_url"]).send(title, body, thumb_url=thumb_url)
         except Exception as exc:
             errors.append(f"{ch}: {exc}")
     return errors
@@ -809,11 +809,27 @@ async def preview_send(
 
     cfg = load_config()
     sub_channels: list[str] = []
+    sub_game_thumbs_league: str = ""
     for s in cfg.get("subscriptions", []):
         if s.get("label") == sub_label:
             sub_channels = s.get("notify_channels", [])
+            sub_game_thumbs_league = s.get("game_thumbs_league") or ""
             break
-    errors = _send_to_channels(notif_title, notif_body, sub_channels, cfg)
+
+    thumb_url = ""
+    if sub_game_thumbs_league:
+        from game_thumbs import build_thumb_url, _extract_game_teams, _to_pascal
+        thumbs_cfg = cfg.get("game_thumbs", {})
+        if thumbs_cfg.get("enabled"):
+            base_url = thumbs_cfg.get("base_url", "").rstrip("/")
+            if base_url:
+                teams = _extract_game_teams(notif_title)
+                if teams:
+                    away = _to_pascal(teams[0])
+                    home = _to_pascal(teams[1])
+                    thumb_url = f"{base_url}/{sub_game_thumbs_league}/{away}/{home}/thumb.png?style=1&logo=true&aspect=16-9"
+
+    errors = _send_to_channels(notif_title, notif_body, sub_channels, cfg, thumb_url=thumb_url)
     if errors:
         return Response(status_code=400, headers={"X-Toast": f"Send failed: {errors[0]}"})
     via = ", ".join(sub_channels) if sub_channels else "all enabled channels"

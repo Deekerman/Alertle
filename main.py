@@ -108,6 +108,12 @@ def run_scan(cfg: dict, notifiers_map: dict[str, BaseNotifier], store: Notificat
         log.warning("No subscriptions configured — nothing to match.")
         return
 
+    thumbs_cfg = cfg.get("game_thumbs", {})
+    if thumbs_cfg.get("enabled"):
+        log.info("Game thumbs enabled: %s", thumbs_cfg.get("base_url", "(no URL set)"))
+    else:
+        log.info("Game thumbs disabled — enable in Settings to include team images")
+
     desc_dedup = cfg.get("desc_dedup", False)
     log.info("Scanning EPG from %s to %s | espn_verify=%s notify_replays=%s desc_dedup=%s",
              now.strftime("%Y-%m-%d %H:%M"), window_end.strftime("%Y-%m-%d %H:%M"),

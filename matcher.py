@@ -11,7 +11,7 @@ from epg_scanner import Programme
 
 log = logging.getLogger(__name__)
 
-_VS_SEP = re.compile(r'\s+(?:vs?\.?|@)\s+', re.IGNORECASE)
+_VS_SEP = re.compile(r'\s+(?:vs?\.?|@|at)\s+', re.IGNORECASE)
 _TRAILING = re.compile(r'\s*[-–(].*$')
 
 _STOP_WORDS = {

@@ -59,6 +59,7 @@ def build_thumb_url(game: "GroupedMatch", cfg: dict) -> Optional[str]:
         return None
     base_url = thumbs.get("base_url", "").rstrip("/")
     if not base_url:
+        log.warning("game_thumbs enabled but base_url not configured")
         return None
     path_tpl = thumbs.get("path", _DEFAULT_PATH)
 
@@ -70,7 +71,8 @@ def build_thumb_url(game: "GroupedMatch", cfg: dict) -> Optional[str]:
         cats = " ".join(game.categories).lower()
         league = next((code for kw, code in _CATEGORY_LEAGUE_MAP if kw in cats), None)
     if not league:
-        log.debug("build_thumb_url: no league for '%s' (categories=%s)", game.title, game.categories)
+        log.info("build_thumb_url: no league for '%s' (espn_league=%s categories=%s)",
+                 game.title, getattr(game.subscription, "espn_league", None), game.categories)
         return None
 
     # Teams: prefer ESPN abbreviation/name, fall back to EPG title parsing
@@ -79,8 +81,8 @@ def build_thumb_url(game: "GroupedMatch", cfg: dict) -> Optional[str]:
     if not away or not home:
         teams = extract_teams(game.title)
         if not teams:
-            log.debug("build_thumb_url: no teams for '%s' (espn_away=%s espn_home=%s)",
-                      game.title, game.espn_away, game.espn_home)
+            log.info("build_thumb_url: no teams for '%s' (espn_away=%s espn_home=%s)",
+                     game.title, game.espn_away, game.espn_home)
             return None
         away, home = _to_pascal(teams[0]), _to_pascal(teams[1])
 
@@ -89,4 +91,6 @@ def build_thumb_url(game: "GroupedMatch", cfg: dict) -> Optional[str]:
         away_team_pascal=quote(away, safe=""),
         home_team_pascal=quote(home, safe=""),
     )
-    return base_url + path
+    url = base_url + path
+    log.info("build_thumb_url: %s", url)
+    return url

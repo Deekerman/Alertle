@@ -197,6 +197,9 @@ class GroupedMatch:
     group_uid: str
     is_replay: bool = False
     espn_start: Optional[object] = None
+    espn_away: Optional[str] = None
+    espn_home: Optional[str] = None
+    espn_league_code: Optional[str] = None
     extra_games: list["GroupedMatch"] = field(default_factory=list)
 
 

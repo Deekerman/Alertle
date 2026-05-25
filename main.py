@@ -277,12 +277,22 @@ def run_scan(cfg: dict, notifiers_map: dict[str, BaseNotifier], store: Notificat
 
 def _dispatch(notifiers_map: dict[str, BaseNotifier], sub_channels: list[str],
               title: str, body: str, image_url: str | None = None):
+    import requests as _req
+    image_bytes: bytes | None = None
+    if image_url:
+        try:
+            r = _req.get(image_url, timeout=5)
+            r.raise_for_status()
+            image_bytes = r.content
+        except Exception as exc:
+            log.warning("Could not fetch game thumbnail (%s): %s", image_url, exc)
+
     targets = notifiers_map if not sub_channels else {
         k: v for k, v in notifiers_map.items() if k in sub_channels
     }
     for key, notifier in targets.items():
         try:
-            notifier.send(title, body, image_url)
+            notifier.send(title, body, image_bytes=image_bytes)
         except Exception as exc:
             log.error("Notifier %s failed: %s", key, exc)
 

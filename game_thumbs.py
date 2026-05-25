@@ -36,10 +36,10 @@ def _to_pascal(name: str) -> str:
     return "".join(w.capitalize() for w in re.split(r"\s+", name.strip()) if w)
 
 
-def _build_url(league_code: str, away: str, home: str, image_type: str, style: str) -> str:
+def _build_url(league_code: str, away: str, home: str, image_type: str, style: str, aspect: str = "16-9") -> str:
     filenames = {"cover": "cover.png", "thumb": "thumb.png"}
     filename = filenames.get(image_type, "logo.png")
-    return f"{GAME_THUMBS_BASE}/{league_code}/{away}/{home}/{filename}?style={style}&logo=true&aspect=16-9"
+    return f"{GAME_THUMBS_BASE}/{league_code}/{away}/{home}/{filename}?style={style}&logo=true&aspect={aspect}"
 
 
 def build_thumb_url(game: "GroupedMatch", cfg: dict) -> str:
@@ -63,6 +63,7 @@ def build_thumb_url(game: "GroupedMatch", cfg: dict) -> str:
     home = _to_pascal(teams[1])
     image_type = thumbs_cfg.get("image_type", "logo")
     style = str(thumbs_cfg.get("style", "1"))
-    url = _build_url(league_code, away, home, image_type, style)
+    aspect = thumbs_cfg.get("aspect", "16-9")
+    url = _build_url(league_code, away, home, image_type, style, aspect)
     log.info("build_thumb_url: %s", url)
     return url

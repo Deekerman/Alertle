@@ -197,7 +197,7 @@
                       after:transition-all peer-checked:after:translate-x-4"></div>
         </label>
       </div>
-      <div class="border-t border-border pt-4 grid grid-cols-2 gap-4">
+      <div class="border-t border-border pt-4 grid grid-cols-3 gap-4">
         <div>
           <label class="form-label">Image Type</label>
           <select name="game_thumbs_type" class="field" x-model="type">
@@ -212,6 +212,14 @@
             <template x-for="s in styles" :key="s.v">
               <option :value="s.v" :selected="s.v === '{{ thumbs.get('style', '1')|string }}'" x-text="s.label"></option>
             </template>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Aspect Ratio</label>
+          <select name="game_thumbs_aspect" class="field">
+            {% for ar in ['16-9', '4-3', '1-1'] %}
+            <option value="{{ ar }}" {% if thumbs.get('aspect', '16-9') == ar %}selected{% endif %}>{{ ar }}</option>
+            {% endfor %}
           </select>
         </div>
       </div>

@@ -36,8 +36,8 @@ from notifiers.base import (
 )
 from storage import NotificationStore
 
-CONFIG_PATH = ROOT / "config.yaml"
-DB_PATH = ROOT / "alertle.db"
+CONFIG_PATH = Path(os.environ.get("ALERTLE_CONFIG", str(ROOT / "config.yaml")))
+DB_PATH     = Path(os.environ.get("ALERTLE_DB",     str(ROOT / "alertle.db")))
 _VERSION_FILE = ROOT / "VERSION"
 _VERSION = _VERSION_FILE.read_text().strip() if _VERSION_FILE.exists() else "dev"
 

@@ -119,7 +119,7 @@ def run_scan(cfg: dict, notifiers_map: dict[str, BaseNotifier], store: Notificat
     grouped = group_matches(matches, grace_window_minutes=grace)
     log.info("Found %d unique events (%d channel slots matched, grace=%dm)", len(grouped), len(matches), grace)
 
-    from espn import filter_replays, get_espn_game_time
+    from espn import filter_replays, get_espn_game_time, get_espn_teams
     grouped = filter_replays(grouped, cfg)
     log.info("After replay filter: %d events remain", len(grouped))
 
@@ -136,6 +136,15 @@ def run_scan(cfg: dict, notifiers_map: dict[str, BaseNotifier], store: Notificat
             log.info("ESPN anchor: '%s' → %s (EPG was %s)",
                      g.title, t.astimezone().strftime("%-I:%M %p"),
                      g.start.astimezone().strftime("%-I:%M %p"))
+        teams_info = get_espn_teams(
+            g.title, g.start, g.categories,
+            espn_sport=getattr(g.subscription, "espn_sport", None),
+            espn_league=getattr(g.subscription, "espn_league", None),
+            espn_team=getattr(g.subscription, "espn_team", None),
+        )
+        if teams_info:
+            g.espn_away, g.espn_home, g.espn_league_code = teams_info
+            log.debug("ESPN teams: %s vs %s (%s)", g.espn_away, g.espn_home, g.espn_league_code)
 
     consolidated = consolidate_notifications(grouped, grace_window_minutes=grace)
     log.info("After consolidation: %d notification groups", len(consolidated))

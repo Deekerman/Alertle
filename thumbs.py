@@ -3,22 +3,41 @@ from __future__ import annotations
 
 import re
 from typing import TYPE_CHECKING, Optional
+from urllib.parse import quote
 
 from matcher import extract_teams
 
 if TYPE_CHECKING:
     from matcher import GroupedMatch
 
+# ESPN league code → Game-Thumbs league code (all lowercase)
+_ESPN_TO_THUMBS_LEAGUE = {
+    "nfl":                      "nfl",
+    "college-football":         "ncaaf",
+    "nba":                      "nba",
+    "mens-college-basketball":  "ncaab",
+    "mlb":                      "mlb",
+    "nhl":                      "nhl",
+    "usa.1":                    "mls",
+    "eng.1":                    "epl",
+    "esp.1":                    "liga",
+    "ger.1":                    "bundesliga",
+    "ita.1":                    "seriea",
+    "fra.1":                    "ligue1",
+    "uefa.champions":           "ucl",
+}
+
+# Category keyword fallback when no ESPN data is available
 _CATEGORY_LEAGUE_MAP = [
-    ("american football", "NFL"),
-    ("college football",  "NCAAF"),
-    ("basketball",        "NBA"),
-    ("baseball",          "MLB"),
-    ("ice hockey",        "NHL"),
-    ("hockey",            "NHL"),
-    ("premier league",    "EPL"),
-    ("champions league",  "UEFA"),
-    ("soccer",            "MLS"),
+    ("american football", "nfl"),
+    ("college football",  "ncaaf"),
+    ("basketball",        "nba"),
+    ("baseball",          "mlb"),
+    ("ice hockey",        "nhl"),
+    ("hockey",            "nhl"),
+    ("premier league",    "epl"),
+    ("champions league",  "ucl"),
+    ("soccer",            "mls"),
 ]
 
 _DEFAULT_PATH = (
@@ -31,16 +50,6 @@ def _to_pascal(name: str) -> str:
     return "".join(w.capitalize() for w in re.split(r"\s+", name.strip()) if w)
 
 
-def _league_code(game: "GroupedMatch") -> Optional[str]:
-    if game.subscription.espn_league:
-        return game.subscription.espn_league.upper()
-    cats = " ".join(game.categories).lower()
-    for keyword, code in _CATEGORY_LEAGUE_MAP:
-        if keyword in cats:
-            return code
-    return None
-
-
 def build_thumb_url(game: "GroupedMatch", cfg: dict) -> Optional[str]:
     thumbs = cfg.get("game_thumbs", {})
     if not thumbs.get("enabled"):
@@ -49,15 +58,29 @@ def build_thumb_url(game: "GroupedMatch", cfg: dict) -> Optional[str]:
     if not base_url:
         return None
     path_tpl = thumbs.get("path", _DEFAULT_PATH)
-    league = _league_code(game)
+
+    # League: subscription ESPN league → thumbs code, then API-discovered, then categories
+    espn_league = getattr(game.subscription, "espn_league", None) or game.espn_league_code
+    if espn_league:
+        league = _ESPN_TO_THUMBS_LEAGUE.get(espn_league, espn_league)
+    else:
+        cats = " ".join(game.categories).lower()
+        league = next((code for kw, code in _CATEGORY_LEAGUE_MAP if kw in cats), None)
     if not league:
         return None
-    teams = extract_teams(game.title)
-    if not teams:
-        return None
+
+    # Teams: prefer ESPN abbreviation/name, fall back to EPG title parsing
+    away = game.espn_away
+    home = game.espn_home
+    if not away or not home:
+        teams = extract_teams(game.title)
+        if not teams:
+            return None
+        away, home = _to_pascal(teams[0]), _to_pascal(teams[1])
+
     path = path_tpl.format(
         league_code=league,
-        away_team_pascal=_to_pascal(teams[0]),
-        home_team_pascal=_to_pascal(teams[1]),
+        away_team_pascal=quote(away, safe=""),
+        home_team_pascal=quote(home, safe=""),
     )
     return base_url + path

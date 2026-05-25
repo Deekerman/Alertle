@@ -1,0 +1,13 @@
+services:
+  alertle:
+    image: ghcr.io/deekerman/alertle:latest
+    build: .
+    container_name: alertle
+    ports:
+      - "8888:8888"
+    volumes:
+      - alertle_data:/data
+    restart: unless-stopped
+
+volumes:
+  alertle_data:

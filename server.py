@@ -686,6 +686,8 @@ async def save_settings(request: Request):
     thumbs["image_type"] = form.get("game_thumbs_type", "logo").strip() or "logo"
     raw_style = form.get("game_thumbs_style", "1").strip()
     thumbs["style"] = raw_style if raw_style.isdigit() else "1"
+    raw_aspect = form.get("game_thumbs_aspect", "16-9").strip()
+    thumbs["aspect"] = raw_aspect if raw_aspect in ("4-3", "16-9", "1-1") else "16-9"
     thumbs.pop("base_url", None)
 
     tpl = cfg.setdefault("notification_template", {})
@@ -823,7 +825,8 @@ async def preview_send(
                 home = _to_pascal(teams[1])
                 image_type = thumbs_cfg.get("image_type", "logo")
                 style = str(thumbs_cfg.get("style", "1"))
-                thumb_url = _build_url(sub_game_thumbs_league, away, home, image_type, style)
+                aspect = thumbs_cfg.get("aspect", "16-9")
+                thumb_url = _build_url(sub_game_thumbs_league, away, home, image_type, style, aspect)
 
     errors = _send_to_channels(notif_title, notif_body, sub_channels, cfg, thumb_url=thumb_url)
     if errors:

@@ -683,14 +683,10 @@ async def save_settings(request: Request):
 
     thumbs = cfg.setdefault("game_thumbs", {})
     thumbs["enabled"] = form.get("game_thumbs_enabled") == "on"
-    raw_thumbs_url = form.get("game_thumbs_url", "").strip()
-    if raw_thumbs_url:
-        try:
-            thumbs["base_url"] = _validate_url(raw_thumbs_url)
-        except ValueError as exc:
-            return Response(status_code=400, headers={"X-Toast": str(exc)})
-    elif "base_url" not in thumbs:
-        thumbs["base_url"] = ""
+    thumbs["image_type"] = form.get("game_thumbs_type", "logo").strip() or "logo"
+    raw_style = form.get("game_thumbs_style", "1").strip()
+    thumbs["style"] = raw_style if raw_style.isdigit() else "1"
+    thumbs.pop("base_url", None)
 
     tpl = cfg.setdefault("notification_template", {})
     tpl_title = form.get("notif_title_tpl", "").strip()
@@ -818,16 +814,16 @@ async def preview_send(
 
     thumb_url = ""
     if sub_game_thumbs_league:
-        from game_thumbs import build_thumb_url, _extract_game_teams, _to_pascal
+        from game_thumbs import _extract_game_teams, _to_pascal, _build_url
         thumbs_cfg = cfg.get("game_thumbs", {})
         if thumbs_cfg.get("enabled"):
-            base_url = thumbs_cfg.get("base_url", "").rstrip("/")
-            if base_url:
-                teams = _extract_game_teams(notif_title)
-                if teams:
-                    away = _to_pascal(teams[0])
-                    home = _to_pascal(teams[1])
-                    thumb_url = f"{base_url}/{sub_game_thumbs_league}/{away}/{home}/thumb.png?style=1&logo=true&aspect=16-9"
+            teams = _extract_game_teams(notif_title)
+            if teams:
+                away = _to_pascal(teams[0])
+                home = _to_pascal(teams[1])
+                image_type = thumbs_cfg.get("image_type", "logo")
+                style = str(thumbs_cfg.get("style", "1"))
+                thumb_url = _build_url(sub_game_thumbs_league, away, home, image_type, style)
 
     errors = _send_to_channels(notif_title, notif_body, sub_channels, cfg, thumb_url=thumb_url)
     if errors:

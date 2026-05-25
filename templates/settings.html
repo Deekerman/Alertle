@@ -160,11 +160,33 @@
 
     <!-- ── Game Thumbnails ───────────────────────────────────────────── -->
     {% set thumbs = cfg.get('game_thumbs', {}) %}
-    <section class="card p-5 space-y-4">
+    <section class="card p-5 space-y-4"
+             x-data="{
+               type: '{{ thumbs.get('image_type', 'logo') }}',
+               logoStyles: [
+                 {v:'1', label:'Style 1 — Diagonal split with dividing line'},
+                 {v:'2', label:'Style 2 — Side by side arrangement'},
+                 {v:'3', label:'Style 3 — Circle badges with team colors (league logo overlay)'},
+                 {v:'4', label:'Style 4 — Square badges with team colors (league logo overlay)'},
+                 {v:'5', label:'Style 5 — Circle badges with league logo on left (white background)'},
+                 {v:'6', label:'Style 6 — Square badges with league logo on left (white background)'},
+               ],
+               coverStyles: [
+                 {v:'1',  label:'Style 1 — Diagonal/horizontal split with team colors'},
+                 {v:'2',  label:'Style 2 — Gradient blend between team colors'},
+                 {v:'3',  label:'Style 3 — Minimalist badge with team circles (light background)'},
+                 {v:'4',  label:'Style 4 — Minimalist badge with team circles (dark background)'},
+                 {v:'5',  label:'Style 5 — Grid background with grey diagonal lines and fade to black'},
+                 {v:'6',  label:'Style 6 — Grid background with team color gradient lines and fade to black'},
+                 {v:'98', label:'Style 98 — 3D embossed with textures, reflections, metallic VS badge, and league logo'},
+                 {v:'99', label:'Style 99 — 3D embossed with textures, reflections, and metallic VS badge (no league logo)'},
+               ],
+               get styles() { return this.type === 'cover' ? this.coverStyles : this.logoStyles; }
+             }">
       <div class="flex items-center justify-between">
         <div>
           <h2 class="text-sm font-semibold text-white">Game Thumbnails</h2>
-          <p class="text-xs text-muted mt-0.5">Attach a team matchup image via a self-hosted <a href="https://game-thumbs-docs.swvn.io/" target="_blank" class="text-indigo-400 hover:underline">Game-Thumbs</a> server. Set <code class="text-indigo-300">game_thumbs_league</code> per subscription.</p>
+          <p class="text-xs text-muted mt-0.5">Attach a team matchup image from <a href="https://game-thumbs.swvn.io" target="_blank" class="text-indigo-400 hover:underline">game-thumbs.swvn.io</a>. Set <code class="text-indigo-300">game_thumbs_league</code> per subscription.</p>
         </div>
         <label class="relative inline-flex items-center cursor-pointer shrink-0 ml-4">
           <input type="checkbox" name="game_thumbs_enabled" value="on" class="sr-only peer"
@@ -175,12 +197,22 @@
                       after:transition-all peer-checked:after:translate-x-4"></div>
         </label>
       </div>
-      <div class="border-t border-border pt-4">
-        <label class="form-label">Server URL</label>
-        <input name="game_thumbs_url" class="field"
-               value="{{ thumbs.get('base_url', '') }}"
-               placeholder="e.g. http://192.168.1.40:3050" />
-        <p class="form-hint">Base URL of your Game-Thumbs server — no trailing slash</p>
+      <div class="border-t border-border pt-4 grid grid-cols-2 gap-4">
+        <div>
+          <label class="form-label">Image Type</label>
+          <select name="game_thumbs_type" class="field" x-model="type">
+            <option value="logo">Logo</option>
+            <option value="cover">Cover</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Style</label>
+          <select name="game_thumbs_style" class="field">
+            <template x-for="s in styles" :key="s.v">
+              <option :value="s.v" :selected="s.v === '{{ thumbs.get('style', '1')|string }}'" x-text="s.label"></option>
+            </template>
+          </select>
+        </div>
       </div>
     </section>
 

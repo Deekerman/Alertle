@@ -103,13 +103,7 @@ def _fetch_events(sport: str, league: str, date_from: datetime, date_to: datetim
     events: list[dict] = []
     for ev in raw.get("events", []):
         comps = ev.get("competitions", [{}])[0].get("competitors", [])
-        competitor_data = [
-            {
-                "displayName":  c.get("team", {}).get("displayName", ""),
-                "abbreviation": c.get("team", {}).get("abbreviation", ""),
-            }
-            for c in comps[:2]
-        ]
+        competitor_names = [c.get("team", {}).get("displayName", "") for c in comps]
 
         try:
             ev_date = datetime.fromisoformat(ev["date"].replace("Z", "+00:00"))
@@ -118,12 +112,11 @@ def _fetch_events(sport: str, league: str, date_from: datetime, date_to: datetim
 
         status = ev.get("status", {}).get("type", {})
         events.append({
-            "name":             ev.get("name", ""),
-            "date":             ev_date,
-            "state":            status.get("state", "pre"),   # "pre" | "in" | "post"
-            "completed":        status.get("completed", False),
-            "competitors":      [d["displayName"] for d in competitor_data if d["displayName"]],
-            "competitors_data": competitor_data,
+            "name":        ev.get("name", ""),
+            "date":        ev_date,
+            "state":       status.get("state", "pre"),   # "pre" | "in" | "post"
+            "completed":   status.get("completed", False),
+            "competitors": [n for n in competitor_names if n],
         })
 
     with _cache_lock:
@@ -285,45 +278,6 @@ def get_espn_game_time(
         if matched:
             closest = min(matched, key=lambda ev: abs((epg_start - ev["date"]).total_seconds()))
             return closest["date"]
-
-    return None
-
-
-def get_espn_teams(
-    epg_title: str, epg_start: datetime, categories: list[str],
-    espn_sport: Optional[str] = None, espn_league: Optional[str] = None,
-    espn_team: Optional[str] = None,
-) -> Optional[tuple[str, str, str]]:
-    """Return (away, home, espn_league_code) using the same cache as get_espn_game_time().
-
-    away/home prefer abbreviation (e.g. 'KC'), fall back to displayName.
-    Returns None when no matching event or competitor data is found.
-    """
-    if espn_sport and espn_league:
-        leagues = [(espn_sport, espn_league)]
-    else:
-        leagues = _leagues_for_categories(categories)
-    if not leagues:
-        return None
-
-    search_from = epg_start - timedelta(days=1)
-    search_to   = epg_start + timedelta(days=1)
-
-    for sport, league in leagues:
-        events = _fetch_events(sport, league, search_from, search_to)
-        if espn_team:
-            matched = [ev for ev in events if any(espn_team.lower() in c.lower() for c in ev["competitors"])]
-        else:
-            matched = [ev for ev in events if _matches_event(epg_title, ev["name"], ev["competitors"])]
-        if not matched:
-            continue
-        closest = min(matched, key=lambda ev: abs((epg_start - ev["date"]).total_seconds()))
-        comps = closest.get("competitors_data", [])
-        if len(comps) >= 2:
-            away = comps[0].get("abbreviation") or comps[0].get("displayName", "")
-            home = comps[1].get("abbreviation") or comps[1].get("displayName", "")
-            if away and home:
-                return away, home, league
 
     return None
 

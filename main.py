@@ -13,7 +13,6 @@ import yaml
 
 from epg_scanner import DispatcharrClient
 from matcher import Match, build_subscriptions, find_matches, group_matches, consolidate_notifications
-from thumbs import build_thumb_url
 from notifiers.base import (
     BaseNotifier, DEFAULT_TITLE_TEMPLATE, DEFAULT_BODY_TEMPLATE,
     build_preview_vars, format_grouped_message,
@@ -108,12 +107,6 @@ def run_scan(cfg: dict, notifiers_map: dict[str, BaseNotifier], store: Notificat
         log.warning("No subscriptions configured — nothing to match.")
         return
 
-    thumbs_cfg = cfg.get("game_thumbs", {})
-    if thumbs_cfg.get("enabled"):
-        log.info("Game thumbs enabled: %s", thumbs_cfg.get("base_url", "(no URL set)"))
-    else:
-        log.info("Game thumbs disabled — enable in Settings to include team images")
-
     desc_dedup = cfg.get("desc_dedup", False)
     log.info("Scanning EPG from %s to %s | espn_verify=%s notify_replays=%s desc_dedup=%s",
              now.strftime("%Y-%m-%d %H:%M"), window_end.strftime("%Y-%m-%d %H:%M"),
@@ -125,7 +118,7 @@ def run_scan(cfg: dict, notifiers_map: dict[str, BaseNotifier], store: Notificat
     grouped = group_matches(matches, grace_window_minutes=grace)
     log.info("Found %d unique events (%d channel slots matched, grace=%dm)", len(grouped), len(matches), grace)
 
-    from espn import filter_replays, get_espn_game_time, get_espn_teams
+    from espn import filter_replays, get_espn_game_time
     grouped = filter_replays(grouped, cfg)
     log.info("After replay filter: %d events remain", len(grouped))
 
@@ -142,16 +135,6 @@ def run_scan(cfg: dict, notifiers_map: dict[str, BaseNotifier], store: Notificat
             log.info("ESPN anchor: '%s' → %s (EPG was %s)",
                      g.title, t.astimezone().strftime("%-I:%M %p"),
                      g.start.astimezone().strftime("%-I:%M %p"))
-        teams_info = get_espn_teams(
-            g.title, g.start, g.categories,
-            espn_sport=getattr(g.subscription, "espn_sport", None),
-            espn_league=getattr(g.subscription, "espn_league", None),
-            espn_team=getattr(g.subscription, "espn_team", None),
-        )
-        if teams_info:
-            g.espn_away, g.espn_home, g.espn_league_code = teams_info
-            log.debug("ESPN teams: %s vs %s (%s)", g.espn_away, g.espn_home, g.espn_league_code)
-
     consolidated = consolidate_notifications(grouped, grace_window_minutes=grace)
     log.info("After consolidation: %d notification groups", len(consolidated))
 
@@ -222,8 +205,7 @@ def run_scan(cfg: dict, notifiers_map: dict[str, BaseNotifier], store: Notificat
             print(body)
         else:
             log.info("Sending notification: %s", title)
-            image_url = build_thumb_url(final_ready[0], cfg)
-            _dispatch(notifiers_map, primary.subscription.notify_channels, title, body, image_url)
+            _dispatch(notifiers_map, primary.subscription.notify_channels, title, body)
             for g in final_ready:
                 desc_hash = None
                 if desc_dedup and g.description and g.description.strip():
@@ -270,8 +252,7 @@ def run_scan(cfg: dict, notifiers_map: dict[str, BaseNotifier], store: Notificat
             print(body)
         else:
             log.info("Sending start notification: %s", title)
-            image_url = build_thumb_url(ready_start[0], cfg)
-            _dispatch(notifiers_map, primary.subscription.notify_channels, title, body, image_url)
+            _dispatch(notifiers_map, primary.subscription.notify_channels, title, body)
             for g in ready_start:
                 store.mark_sent(g.group_uid + ":start", g.subscription.label, now.isoformat())
             sent_count += 1
@@ -282,23 +263,13 @@ def run_scan(cfg: dict, notifiers_map: dict[str, BaseNotifier], store: Notificat
 
 
 def _dispatch(notifiers_map: dict[str, BaseNotifier], sub_channels: list[str],
-              title: str, body: str, image_url: str | None = None):
-    import requests as _req
-    image_bytes: bytes | None = None
-    if image_url:
-        try:
-            r = _req.get(image_url, timeout=5)
-            r.raise_for_status()
-            image_bytes = r.content
-        except Exception as exc:
-            log.warning("Could not fetch game thumbnail (%s): %s", image_url, exc)
-
+              title: str, body: str):
     targets = notifiers_map if not sub_channels else {
         k: v for k, v in notifiers_map.items() if k in sub_channels
     }
     for key, notifier in targets.items():
         try:
-            notifier.send(title, body, image_bytes=image_bytes)
+            notifier.send(title, body)
         except Exception as exc:
             log.error("Notifier %s failed: %s", key, exc)
 

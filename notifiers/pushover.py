@@ -13,7 +13,7 @@ class PushoverNotifier(BaseNotifier):
         self.user_key = user_key
         self.priority = priority
 
-    def send(self, title: str, body: str, image_bytes: bytes | None = None) -> None:
+    def send(self, title: str, body: str) -> None:
         payload = {
             "token": self.app_token,
             "user": self.user_key,
@@ -21,11 +21,8 @@ class PushoverNotifier(BaseNotifier):
             "message": body,
             "priority": self.priority,
         }
-        files = None
-        if image_bytes:
-            files = {"attachment": ("thumb.jpg", image_bytes, "image/jpeg")}
         try:
-            resp = requests.post(PUSHOVER_API, data=payload, files=files, timeout=15)
+            resp = requests.post(PUSHOVER_API, data=payload, timeout=15)
             resp.raise_for_status()
         except requests.RequestException as exc:
             log.error("Pushover notification failed: %s", exc)

@@ -10,6 +10,8 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+GAME_THUMBS_BASE = "https://game-thumbs.swvn.io"
+
 # Separators used in sports titles: "vs", "vs.", "v.", "@", "at" (away at home)
 _TEAM_SEP    = re.compile(r'\s+(?:vs?\.?|@|at)\s+', re.IGNORECASE)
 _TRAILING    = re.compile(r'\s*[-–(].*$')   # strip trailing dash/paren noise
@@ -34,14 +36,18 @@ def _to_pascal(name: str) -> str:
     return "".join(w.capitalize() for w in re.split(r"\s+", name.strip()) if w)
 
 
+def _build_url(league_code: str, away: str, home: str, image_type: str, style: str) -> str:
+    logo = "true" if image_type == "logo" else "false"
+    return (
+        f"{GAME_THUMBS_BASE}/{league_code}/{away}/{home}"
+        f"/thumb.png?style={style}&logo={logo}&aspect=16-9"
+    )
+
+
 def build_thumb_url(game: "GroupedMatch", cfg: dict) -> str:
     """Return a Game-Thumbs URL, or '' if teams/league/config unavailable."""
     thumbs_cfg = cfg.get("game_thumbs", {})
     if not thumbs_cfg.get("enabled"):
-        return ""
-    base_url = thumbs_cfg.get("base_url", "").rstrip("/")
-    if not base_url:
-        log.warning("game_thumbs enabled but base_url not set in Settings")
         return ""
     league_code = getattr(game.subscription, "game_thumbs_league", None)
     if not league_code:
@@ -57,6 +63,8 @@ def build_thumb_url(game: "GroupedMatch", cfg: dict) -> str:
         return ""
     away = _to_pascal(teams[0])
     home = _to_pascal(teams[1])
-    url = f"{base_url}/{league_code}/{away}/{home}/thumb.png?style=1&logo=true&aspect=16-9"
+    image_type = thumbs_cfg.get("image_type", "logo")
+    style = str(thumbs_cfg.get("style", "1"))
+    url = _build_url(league_code, away, home, image_type, style)
     log.info("build_thumb_url: %s", url)
     return url

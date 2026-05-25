@@ -158,6 +158,32 @@
       </div>
     </section>
 
+    <!-- ── Game Thumbnails ───────────────────────────────────────────── -->
+    {% set thumbs = cfg.get('game_thumbs', {}) %}
+    <section class="card p-5 space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-sm font-semibold text-white">Game Thumbnails</h2>
+          <p class="text-xs text-muted mt-0.5">Attach a team matchup image via a self-hosted <a href="https://game-thumbs-docs.swvn.io/" target="_blank" class="text-indigo-400 hover:underline">Game-Thumbs</a> server. Set <code class="text-indigo-300">game_thumbs_league</code> per subscription.</p>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer shrink-0 ml-4">
+          <input type="checkbox" name="game_thumbs_enabled" value="on" class="sr-only peer"
+                 {% if thumbs.get('enabled') %}checked{% endif %}>
+          <div class="w-8 h-4 rounded-full peer bg-border peer-checked:bg-indigo-600
+                      after:content-[''] after:absolute after:top-0.5 after:left-0.5
+                      after:bg-white after:rounded-full after:w-3 after:h-3
+                      after:transition-all peer-checked:after:translate-x-4"></div>
+        </label>
+      </div>
+      <div class="border-t border-border pt-4">
+        <label class="form-label">Server URL</label>
+        <input name="game_thumbs_url" class="field"
+               value="{{ thumbs.get('base_url', '') }}"
+               placeholder="e.g. http://192.168.1.40:3050" />
+        <p class="form-hint">Base URL of your Game-Thumbs server — no trailing slash</p>
+      </div>
+    </section>
+
     <!-- Save -->
     <div class="flex justify-end pt-2">
       <button type="submit" class="btn-primary px-8">Save Settings</button>

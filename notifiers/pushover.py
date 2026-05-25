@@ -13,7 +13,7 @@ class PushoverNotifier(BaseNotifier):
         self.user_key = user_key
         self.priority = priority
 
-    def send(self, title: str, body: str) -> None:
+    def send(self, title: str, body: str, thumb_url: str = "") -> None:
         payload = {
             "token": self.app_token,
             "user": self.user_key,
@@ -21,6 +21,9 @@ class PushoverNotifier(BaseNotifier):
             "message": body,
             "priority": self.priority,
         }
+        if thumb_url:
+            payload["url"] = thumb_url
+            payload["url_title"] = "Matchup Image"
         try:
             resp = requests.post(PUSHOVER_API, data=payload, timeout=15)
             resp.raise_for_status()

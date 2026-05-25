@@ -103,6 +103,7 @@ class Subscription:
     espn_sport: Optional[str] = None
     espn_league: Optional[str] = None
     espn_team: Optional[str] = None
+    game_thumbs_league: Optional[str] = None
     require_live: bool = False
     enabled: bool = True
     notify_on_start: bool = False
@@ -224,6 +225,7 @@ def build_subscriptions(raw: list[dict], default_lead_time: int) -> list[Subscri
             espn_sport=entry.get("espn_sport") or None,
             espn_league=entry.get("espn_league") or None,
             espn_team=entry.get("espn_team") or None,
+            game_thumbs_league=entry.get("game_thumbs_league") or None,
             require_live=bool(entry.get("require_live", False)),
             enabled=bool(entry.get("enabled", True)),
             notify_on_start=bool(entry.get("notify_on_start", False)),

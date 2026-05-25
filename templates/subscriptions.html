@@ -163,6 +163,12 @@
             </div>
 
             <div class="mb-4">
+              <label class="form-label">Game Thumbnails league <span class="text-muted font-normal">(optional)</span></label>
+              <input name="game_thumbs_league" class="field font-mono" placeholder="e.g. nhl, nfl, nba, mlb" />
+              <p class="form-hint">League code for Game-Thumbs image lookup — requires Game-Thumbs server in Settings</p>
+            </div>
+
+            <div class="mb-4">
               <label class="form-label">Exclude keywords</label>
               <input name="exclude" class="field" placeholder="e.g. Women's, U20, highlights, replay" />
               <p class="form-hint">Comma-separated — any match blocks the notification</p>
@@ -415,6 +421,12 @@
             </select>
           </div>
         </div>
+      </div>
+      <div>
+        <label class="form-label">Game Thumbnails league <span class="text-muted font-normal">(optional)</span></label>
+        <input name="game_thumbs_league" :value="$store.subEdit.game_thumbs_league" class="field font-mono"
+               placeholder="e.g. nhl, nfl, nba, mlb" />
+        <p class="form-hint">League code for Game-Thumbs image lookup</p>
       </div>
       <div>
         <label class="form-label">Exclude keywords</label>

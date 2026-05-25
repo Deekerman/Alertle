@@ -109,6 +109,9 @@
               espn:{% if sub.get('espn_team') %} {{ sub.espn_team }}{% elif sub.get('espn_league') %} {{ sub.espn_league|upper }}{% endif %}
             </span>
             {% endif %}
+            {% if sub.get('game_thumbs_league') %}
+            <span class="pill bg-sky-500/10 text-sky-300 border border-sky-500/20">🖼 {{ sub.game_thumbs_league }}</span>
+            {% endif %}
             {% if not sub.sport and not sub.team and not sub.keyword and not sub.channel
                   and not sub.get('title_pattern') and not sub.get('subtitle_pattern') and not sub.get('desc_pattern') %}
             <span class="text-muted text-xs">—</span>

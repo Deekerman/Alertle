@@ -11,14 +11,14 @@ class TelegramNotifier(BaseNotifier):
         self.bot_token = bot_token
         self.chat_id = chat_id
 
-    def send(self, title: str, body: str, image_url: str | None = None) -> None:
-        if image_url:
+    def send(self, title: str, body: str, image_bytes: bytes | None = None) -> None:
+        if image_bytes:
             caption = f"<b>{html.escape(title)}</b>\n{html.escape(body)}"
             try:
                 resp = requests.post(
                     f"https://api.telegram.org/bot{self.bot_token}/sendPhoto",
-                    json={"chat_id": self.chat_id, "photo": image_url,
-                          "caption": caption, "parse_mode": "HTML"},
+                    data={"chat_id": self.chat_id, "caption": caption, "parse_mode": "HTML"},
+                    files={"photo": ("thumb.jpg", image_bytes, "image/jpeg")},
                     timeout=15,
                 )
                 resp.raise_for_status()

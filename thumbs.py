@@ -1,11 +1,14 @@
 """Build game thumbnail image URLs from matched EPG events."""
 from __future__ import annotations
 
+import logging
 import re
 from typing import TYPE_CHECKING, Optional
 from urllib.parse import quote
 
 from matcher import extract_teams
+
+log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from matcher import GroupedMatch
@@ -67,6 +70,7 @@ def build_thumb_url(game: "GroupedMatch", cfg: dict) -> Optional[str]:
         cats = " ".join(game.categories).lower()
         league = next((code for kw, code in _CATEGORY_LEAGUE_MAP if kw in cats), None)
     if not league:
+        log.debug("build_thumb_url: no league for '%s' (categories=%s)", game.title, game.categories)
         return None
 
     # Teams: prefer ESPN abbreviation/name, fall back to EPG title parsing
@@ -75,6 +79,8 @@ def build_thumb_url(game: "GroupedMatch", cfg: dict) -> Optional[str]:
     if not away or not home:
         teams = extract_teams(game.title)
         if not teams:
+            log.debug("build_thumb_url: no teams for '%s' (espn_away=%s espn_home=%s)",
+                      game.title, game.espn_away, game.espn_home)
             return None
         away, home = _to_pascal(teams[0]), _to_pascal(teams[1])
 

@@ -11,7 +11,7 @@ from epg_scanner import Programme
 
 log = logging.getLogger(__name__)
 
-_VS_SEP = re.compile(r'\s+(?:vs?\.?|@|at)\s+', re.IGNORECASE)
+_VS_SEP = re.compile(r'\s+(?:vs?\.?|@)\s+', re.IGNORECASE)
 _TRAILING = re.compile(r'\s*[-–(].*$')
 
 _STOP_WORDS = {
@@ -197,9 +197,6 @@ class GroupedMatch:
     group_uid: str
     is_replay: bool = False
     espn_start: Optional[object] = None
-    espn_away: Optional[str] = None
-    espn_home: Optional[str] = None
-    espn_league_code: Optional[str] = None
     extra_games: list["GroupedMatch"] = field(default_factory=list)
 
 

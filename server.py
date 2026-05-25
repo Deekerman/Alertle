@@ -463,6 +463,7 @@ def _build_sub_entry(
     notif_title_tpl: str = "", notif_body_tpl: str = "",
     espn_sport: str = "", espn_league: str = "", espn_team: str = "",
     require_live: str = "",
+    notify_on_start: str = "", start_lead_time_minutes: str = "",
 ) -> dict:
     entry: dict = {"label": label.strip()}
     for key, val in [("sport", sport), ("team", team), ("keyword", keyword),
@@ -490,6 +491,13 @@ def _build_sub_entry(
         entry["notif_title_template"] = notif_title_tpl.strip()
     if notif_body_tpl.strip():
         entry["notif_body_template"] = notif_body_tpl.strip()
+    if notify_on_start == "on":
+        entry["notify_on_start"] = True
+        if start_lead_time_minutes.strip():
+            try:
+                entry["start_lead_time_minutes"] = int(start_lead_time_minutes)
+            except ValueError:
+                pass
     return entry
 
 
@@ -516,6 +524,7 @@ async def add_subscription(
     notif_title_tpl: str = Form(""), notif_body_tpl: str = Form(""),
     espn_sport: str = Form(""), espn_league: str = Form(""), espn_team: str = Form(""),
     require_live: str = Form(""),
+    notify_on_start: str = Form(""), start_lead_time_minutes: str = Form(""),
 ):
     cfg = load_config()
     subs = cfg.setdefault("subscriptions", [])
@@ -523,7 +532,7 @@ async def add_subscription(
                                  title_pattern, subtitle_pattern, desc_pattern,
                                  exclude, require_sport, lead_time_minutes, notify_channels,
                                  notif_title_tpl, notif_body_tpl, espn_sport, espn_league, espn_team,
-                                 require_live))
+                                 require_live, notify_on_start, start_lead_time_minutes))
     save_config(cfg)
     return _sub_response(request, subs, f"Added: {label}", cfg)
 
@@ -557,6 +566,7 @@ async def update_subscription_edit(
     notif_title_tpl: str = Form(""), notif_body_tpl: str = Form(""),
     espn_sport: str = Form(""), espn_league: str = Form(""), espn_team: str = Form(""),
     require_live: str = Form(""),
+    notify_on_start: str = Form(""), start_lead_time_minutes: str = Form(""),
 ):
     cfg = load_config()
     subs = cfg.get("subscriptions", [])
@@ -565,7 +575,7 @@ async def update_subscription_edit(
                                      title_pattern, subtitle_pattern, desc_pattern,
                                      exclude, require_sport, lead_time_minutes, notify_channels,
                                      notif_title_tpl, notif_body_tpl, espn_sport, espn_league, espn_team,
-                                     require_live)
+                                     require_live, notify_on_start, start_lead_time_minutes)
         if not subs[idx].get("enabled", True):
             new_entry["enabled"] = False
         subs[idx] = new_entry
@@ -584,6 +594,7 @@ async def update_subscription(
     lead_time_minutes: str = Form(""), notify_channels: str = Form(""),
     espn_sport: str = Form(""), espn_league: str = Form(""), espn_team: str = Form(""),
     require_live: str = Form(""),
+    notify_on_start: str = Form(""), start_lead_time_minutes: str = Form(""),
 ):
     cfg = load_config()
     subs = cfg.get("subscriptions", [])
@@ -592,7 +603,9 @@ async def update_subscription(
                                      title_pattern, subtitle_pattern, desc_pattern,
                                      exclude, require_sport, lead_time_minutes, notify_channels,
                                      espn_sport=espn_sport, espn_league=espn_league, espn_team=espn_team,
-                                     require_live=require_live)
+                                     require_live=require_live,
+                                     notify_on_start=notify_on_start,
+                                     start_lead_time_minutes=start_lead_time_minutes)
         if not subs[idx].get("enabled", True):
             new_entry["enabled"] = False
         subs[idx] = new_entry

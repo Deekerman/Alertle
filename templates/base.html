@@ -129,6 +129,7 @@
         exclude:'', require_sport: false, require_live: false, lead:'', notify_channels: [],
         notif_title_tpl: '', notif_body_tpl: '',
         espn_sport: '', espn_league: '', espn_team: '',
+        notify_on_start: false, start_lead_time_minutes: 5,
         fill(idx, data) {
           this.idx = idx;
           this.label            = data.label            || '';
@@ -149,6 +150,8 @@
           this.espn_sport       = data.espn_sport  || '';
           this.espn_league      = data.espn_league || '';
           this.espn_team        = data.espn_team   || '';
+          this.notify_on_start         = !!data.notify_on_start;
+          this.start_lead_time_minutes = data.start_lead_time_minutes != null ? data.start_lead_time_minutes : 5;
           this.open = true;
         },
         close() { this.open = false; this.idx = null; }

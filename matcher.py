@@ -105,6 +105,8 @@ class Subscription:
     espn_team: Optional[str] = None
     require_live: bool = False
     enabled: bool = True
+    notify_on_start: bool = False
+    start_lead_time_minutes: int = 5
     _title_re: Optional[re.Pattern] = field(default=None, init=False, repr=False, compare=False)
     _subtitle_re: Optional[re.Pattern] = field(default=None, init=False, repr=False, compare=False)
     _desc_re: Optional[re.Pattern] = field(default=None, init=False, repr=False, compare=False)
@@ -224,6 +226,8 @@ def build_subscriptions(raw: list[dict], default_lead_time: int) -> list[Subscri
             espn_team=entry.get("espn_team") or None,
             require_live=bool(entry.get("require_live", False)),
             enabled=bool(entry.get("enabled", True)),
+            notify_on_start=bool(entry.get("notify_on_start", False)),
+            start_lead_time_minutes=entry.get("start_lead_time_minutes", 5),
         ))
     return subs
 

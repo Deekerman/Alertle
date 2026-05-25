@@ -14,7 +14,7 @@
     <div class="px-8 py-6 space-y-4">
 
       <!-- Add form -->
-      <div class="card" x-data="{ open: false }">
+      <div class="card" x-data="{ open: false, notifyOnStart: false }">
         <button @click="open = !open"
                 class="w-full flex items-center justify-between text-sm px-5 py-4">
           <span class="flex items-center gap-2 font-medium"
@@ -197,6 +197,20 @@
                     <span class="text-muted font-normal"> — only match programmes marked &lt;live&gt; in the EPG</span>
                   </span>
                 </label>
+                <div class="flex flex-col gap-1.5">
+                  <label class="flex items-center gap-2.5 cursor-pointer select-none">
+                    <input type="checkbox" name="notify_on_start" value="on" class="toggle"
+                           @change="notifyOnStart = $event.target.checked" />
+                    <span class="text-xs text-gray-300">Game start notification
+                      <span class="text-muted font-normal"> — second alert near kickoff, never after game begins</span>
+                    </span>
+                  </label>
+                  <div x-show="notifyOnStart" x-cloak class="flex items-center gap-2 ml-6">
+                    <input name="start_lead_time_minutes" type="number" min="1" value="5"
+                           class="field" style="width:5rem" />
+                    <span class="text-xs text-muted">minutes before start</span>
+                  </div>
+                </div>
               </div>
               <button type="submit" class="btn-primary ml-4 shrink-0">Add</button>
             </div>
@@ -423,6 +437,22 @@
           <p class="text-xs text-gray-300">Live broadcasts only</p>
           <p class="form-hint mt-0.5">Only match programmes marked &lt;live&gt; in the EPG</p>
         </label>
+      </div>
+      <div class="flex items-start gap-2.5">
+        <input type="checkbox" name="notify_on_start" value="on" id="edit-notify-start"
+               :checked="$store.subEdit.notify_on_start" class="toggle mt-0.5"
+               @change="$store.subEdit.notify_on_start = $event.target.checked" />
+        <label for="edit-notify-start" class="cursor-pointer">
+          <p class="text-xs text-gray-300">Game start notification</p>
+          <p class="form-hint mt-0.5">Second alert near kickoff — never fires after game begins</p>
+        </label>
+      </div>
+      <div x-show="$store.subEdit.notify_on_start" x-cloak class="flex items-center gap-2 ml-6">
+        <input name="start_lead_time_minutes" type="number" min="1"
+               :value="$store.subEdit.start_lead_time_minutes"
+               @change="$store.subEdit.start_lead_time_minutes = +$event.target.value"
+               class="field" style="width:5rem" />
+        <span class="text-xs text-muted">minutes before start</span>
       </div>
       {% if endpoints %}
       <div>

@@ -462,6 +462,7 @@ def _build_sub_entry(
     notify_channels: str = "",
     notif_title_tpl: str = "", notif_body_tpl: str = "",
     espn_sport: str = "", espn_league: str = "", espn_team: str = "",
+    game_thumbs_league: str = "",
     require_live: str = "",
     notify_on_start: str = "", start_lead_time_minutes: str = "",
 ) -> dict:
@@ -469,7 +470,8 @@ def _build_sub_entry(
     for key, val in [("sport", sport), ("team", team), ("keyword", keyword),
                      ("channel", channel), ("title_pattern", title_pattern),
                      ("subtitle_pattern", subtitle_pattern), ("desc_pattern", desc_pattern),
-                     ("espn_sport", espn_sport), ("espn_league", espn_league), ("espn_team", espn_team)]:
+                     ("espn_sport", espn_sport), ("espn_league", espn_league), ("espn_team", espn_team),
+                     ("game_thumbs_league", game_thumbs_league)]:
         if val.strip():
             entry[key] = val.strip()
     exclude_list = [x.strip() for x in exclude.split(",") if x.strip()]
@@ -523,6 +525,7 @@ async def add_subscription(
     lead_time_minutes: str = Form(""), notify_channels: str = Form(""),
     notif_title_tpl: str = Form(""), notif_body_tpl: str = Form(""),
     espn_sport: str = Form(""), espn_league: str = Form(""), espn_team: str = Form(""),
+    game_thumbs_league: str = Form(""),
     require_live: str = Form(""),
     notify_on_start: str = Form(""), start_lead_time_minutes: str = Form(""),
 ):
@@ -532,7 +535,7 @@ async def add_subscription(
                                  title_pattern, subtitle_pattern, desc_pattern,
                                  exclude, require_sport, lead_time_minutes, notify_channels,
                                  notif_title_tpl, notif_body_tpl, espn_sport, espn_league, espn_team,
-                                 require_live, notify_on_start, start_lead_time_minutes))
+                                 game_thumbs_league, require_live, notify_on_start, start_lead_time_minutes))
     save_config(cfg)
     return _sub_response(request, subs, f"Added: {label}", cfg)
 
@@ -565,6 +568,7 @@ async def update_subscription_edit(
     lead_time_minutes: str = Form(""), notify_channels: str = Form(""),
     notif_title_tpl: str = Form(""), notif_body_tpl: str = Form(""),
     espn_sport: str = Form(""), espn_league: str = Form(""), espn_team: str = Form(""),
+    game_thumbs_league: str = Form(""),
     require_live: str = Form(""),
     notify_on_start: str = Form(""), start_lead_time_minutes: str = Form(""),
 ):
@@ -575,7 +579,7 @@ async def update_subscription_edit(
                                      title_pattern, subtitle_pattern, desc_pattern,
                                      exclude, require_sport, lead_time_minutes, notify_channels,
                                      notif_title_tpl, notif_body_tpl, espn_sport, espn_league, espn_team,
-                                     require_live, notify_on_start, start_lead_time_minutes)
+                                     game_thumbs_league, require_live, notify_on_start, start_lead_time_minutes)
         if not subs[idx].get("enabled", True):
             new_entry["enabled"] = False
         subs[idx] = new_entry
@@ -593,6 +597,7 @@ async def update_subscription(
     exclude: str = Form(""), require_sport: str = Form(""),
     lead_time_minutes: str = Form(""), notify_channels: str = Form(""),
     espn_sport: str = Form(""), espn_league: str = Form(""), espn_team: str = Form(""),
+    game_thumbs_league: str = Form(""),
     require_live: str = Form(""),
     notify_on_start: str = Form(""), start_lead_time_minutes: str = Form(""),
 ):
@@ -603,6 +608,7 @@ async def update_subscription(
                                      title_pattern, subtitle_pattern, desc_pattern,
                                      exclude, require_sport, lead_time_minutes, notify_channels,
                                      espn_sport=espn_sport, espn_league=espn_league, espn_team=espn_team,
+                                     game_thumbs_league=game_thumbs_league,
                                      require_live=require_live,
                                      notify_on_start=notify_on_start,
                                      start_lead_time_minutes=start_lead_time_minutes)
@@ -674,6 +680,17 @@ async def save_settings(request: Request):
     cfg["espn_verify"] = form.get("espn_verify") == "on"
     cfg["espn_notify_replays"] = form.get("espn_notify_replays") == "on"
     cfg["desc_dedup"] = form.get("desc_dedup") == "on"
+
+    thumbs = cfg.setdefault("game_thumbs", {})
+    thumbs["enabled"] = form.get("game_thumbs_enabled") == "on"
+    raw_thumbs_url = form.get("game_thumbs_url", "").strip()
+    if raw_thumbs_url:
+        try:
+            thumbs["base_url"] = _validate_url(raw_thumbs_url)
+        except ValueError as exc:
+            return Response(status_code=400, headers={"X-Toast": str(exc)})
+    elif "base_url" not in thumbs:
+        thumbs["base_url"] = ""
 
     tpl = cfg.setdefault("notification_template", {})
     tpl_title = form.get("notif_title_tpl", "").strip()

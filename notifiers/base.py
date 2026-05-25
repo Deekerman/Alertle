@@ -14,11 +14,12 @@ DEFAULT_BODY_TEMPLATE = "{description}\nTime: {time}\nChannel(s):\n{channels}"
 
 _AVAILABLE_VARS = (
     "{rule}", "{title}", "{subtitle}", "{time}", "{date}",
-    "{channels}", "{duration}", "{description}",
+    "{channels}", "{duration}", "{description}", "{thumb_url}",
 )
 
 
-def build_preview_vars(g: "GroupedMatch", show_channel_nums: bool = False) -> dict:
+def build_preview_vars(g: "GroupedMatch", show_channel_nums: bool = False,
+                       thumb_url: str = "") -> dict:
     local_start = g.start.astimezone()
     if show_channel_nums:
         ch_parts = [f"{num} - {name}" if num else name for num, name in g.channels]
@@ -33,6 +34,7 @@ def build_preview_vars(g: "GroupedMatch", show_channel_nums: bool = False) -> di
         "rule": g.subscription.label,
         "duration": str(int((g.stop - g.start).total_seconds() / 60)),
         "description": g.description or "",
+        "thumb_url": thumb_url,
     }
 
 
@@ -45,13 +47,16 @@ def format_grouped_message(
     title_tpl: str = DEFAULT_TITLE_TEMPLATE,
     body_tpl: str = DEFAULT_BODY_TEMPLATE,
     show_channel_nums: bool = False,
+    thumb_url: str = "",
 ) -> tuple[str, str]:
     if len(games) == 1:
-        vars_ = build_preview_vars(games[0], show_channel_nums=show_channel_nums)
+        vars_ = build_preview_vars(games[0], show_channel_nums=show_channel_nums,
+                                   thumb_url=thumb_url)
         return render_template(title_tpl, vars_), render_template(body_tpl, vars_).rstrip()
 
     # Multi-game: title from first game's vars, body lists each game
-    vars_ = build_preview_vars(games[0], show_channel_nums=show_channel_nums)
+    vars_ = build_preview_vars(games[0], show_channel_nums=show_channel_nums,
+                               thumb_url=thumb_url)
     title_str = render_template(title_tpl, vars_) + f" — {len(games)} games"
 
     lines = []
@@ -71,4 +76,4 @@ def format_grouped_message(
 
 class BaseNotifier(ABC):
     @abstractmethod
-    def send(self, title: str, body: str) -> None: ...
+    def send(self, title: str, body: str, thumb_url: str = "") -> None: ...

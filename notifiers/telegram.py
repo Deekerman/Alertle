@@ -11,7 +11,22 @@ class TelegramNotifier(BaseNotifier):
         self.bot_token = bot_token
         self.chat_id = chat_id
 
-    def send(self, title: str, body: str) -> None:
+    def send(self, title: str, body: str, thumb_url: str = "") -> None:
+        if thumb_url:
+            caption = f"<b>{html.escape(title)}</b>\n{html.escape(body)}"
+            try:
+                resp = requests.post(
+                    f"https://api.telegram.org/bot{self.bot_token}/sendPhoto",
+                    json={"chat_id": self.chat_id, "photo": thumb_url,
+                          "caption": caption, "parse_mode": "HTML"},
+                    timeout=15,
+                )
+                resp.raise_for_status()
+                log.info("Telegram notification sent (photo): %s", title)
+                return
+            except requests.RequestException as exc:
+                log.warning("Telegram sendPhoto failed (%s), falling back to text", exc)
+
         text = f"<b>{html.escape(title)}</b>\n{html.escape(body)}"
         try:
             resp = requests.post(

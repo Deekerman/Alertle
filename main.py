@@ -214,6 +214,50 @@ def run_scan(cfg: dict, notifiers_map: dict[str, BaseNotifier], store: Notificat
                 store.mark_sent(g.group_uid, g.subscription.label, now.isoformat(), desc_hash)
             sent_count += 1
 
+    for primary in consolidated:
+        if not primary.subscription.notify_on_start:
+            continue
+        all_games = [primary] + primary.extra_games
+
+        unsent_start = [g for g in all_games
+                        if not store.already_sent(g.group_uid + ":start", g.subscription.label)]
+        if not unsent_start:
+            continue
+
+        ready_start = []
+        for g in unsent_start:
+            anchor = g.espn_start if g.espn_start else g.start
+            notify_at = anchor - timedelta(minutes=g.subscription.start_lead_time_minutes)
+            if now >= anchor:
+                log.info("Game already started, skipping start notif: [%s] '%s'",
+                         primary.subscription.label, g.subtitle or g.title)
+                continue
+            if now >= notify_at:
+                ready_start.append(g)
+
+        if not ready_start:
+            continue
+
+        notif_tpl = cfg.get("notification_template", {})
+        title_tpl = primary.subscription.notif_title_template or notif_tpl.get("title", DEFAULT_TITLE_TEMPLATE)
+        body_tpl  = primary.subscription.notif_body_template  or notif_tpl.get("body",  DEFAULT_BODY_TEMPLATE)
+        show_nums = notif_tpl.get("show_channel_nums", False)
+        title, body = format_grouped_message(ready_start, title_tpl, body_tpl, show_channel_nums=show_nums)
+        title = f"Starting soon: {title}"
+        if any(g.is_replay for g in ready_start):
+            title = f"[REPLAY] {title}"
+
+        if dry_run:
+            print(f"\n{'─'*60}")
+            print(f"[DRY RUN - START NOTIF] {title}")
+            print(body)
+        else:
+            log.info("Sending start notification: %s", title)
+            _dispatch(notifiers_map, primary.subscription.notify_channels, title, body)
+            for g in ready_start:
+                store.mark_sent(g.group_uid + ":start", g.subscription.label, now.isoformat())
+            sent_count += 1
+
     if not dry_run:
         store.prune_old((now - lookahead).isoformat())
         log.info("Notifications sent: %d", sent_count)

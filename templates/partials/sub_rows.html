@@ -101,6 +101,9 @@
             {% if sub.get('require_live') %}
             <span class="pill bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">live only</span>
             {% endif %}
+            {% if sub.get('notify_on_start') %}
+            <span class="pill bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">+start notif{% if sub.get('start_lead_time_minutes') %} ({{ sub.start_lead_time_minutes }}m){% endif %}</span>
+            {% endif %}
             {% if sub.get('espn_league') or sub.get('espn_team') %}
             <span class="pill bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
               espn:{% if sub.get('espn_team') %} {{ sub.espn_team }}{% elif sub.get('espn_league') %} {{ sub.espn_league|upper }}{% endif %}

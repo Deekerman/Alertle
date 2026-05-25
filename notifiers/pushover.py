@@ -13,7 +13,7 @@ class PushoverNotifier(BaseNotifier):
         self.user_key = user_key
         self.priority = priority
 
-    def send(self, title: str, body: str) -> None:
+    def send(self, title: str, body: str, image_url: str | None = None) -> None:
         payload = {
             "token": self.app_token,
             "user": self.user_key,
@@ -21,8 +21,16 @@ class PushoverNotifier(BaseNotifier):
             "message": body,
             "priority": self.priority,
         }
+        files = None
+        if image_url:
+            try:
+                img = requests.get(image_url, timeout=5)
+                img.raise_for_status()
+                files = {"attachment": ("thumb.jpg", img.content, "image/jpeg")}
+            except Exception as exc:
+                log.warning("Could not fetch thumb for Pushover: %s", exc)
         try:
-            resp = requests.post(PUSHOVER_API, data=payload, timeout=15)
+            resp = requests.post(PUSHOVER_API, data=payload, files=files, timeout=15)
             resp.raise_for_status()
         except requests.RequestException as exc:
             log.error("Pushover notification failed: %s", exc)

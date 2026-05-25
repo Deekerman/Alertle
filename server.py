@@ -675,6 +675,21 @@ async def save_settings(request: Request):
     cfg["espn_notify_replays"] = form.get("espn_notify_replays") == "on"
     cfg["desc_dedup"] = form.get("desc_dedup") == "on"
 
+    thumbs = cfg.setdefault("game_thumbs", {})
+    thumbs["enabled"] = form.get("game_thumbs_enabled") == "on"
+    raw_thumbs_url = form.get("game_thumbs_url", "").strip()
+    if raw_thumbs_url:
+        try:
+            thumbs["base_url"] = _validate_url(raw_thumbs_url)
+        except ValueError as exc:
+            return Response(status_code=400, headers={"X-Toast": str(exc)})
+    elif "base_url" not in thumbs:
+        thumbs["base_url"] = ""
+    thumbs["path"] = form.get("game_thumbs_path", "").strip() or (
+        "/{league_code}/{away_team_pascal}/{home_team_pascal}"
+        "/thumb.png?style=1&logo=true&aspect=16-9"
+    )
+
     tpl = cfg.setdefault("notification_template", {})
     tpl_title = form.get("notif_title_tpl", "").strip()
     tpl_body = form.get("notif_body_tpl", "").strip()

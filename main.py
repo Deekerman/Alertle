@@ -13,6 +13,7 @@ import yaml
 
 from epg_scanner import DispatcharrClient
 from matcher import Match, build_subscriptions, find_matches, group_matches, consolidate_notifications
+from thumbs import build_thumb_url
 from notifiers.base import (
     BaseNotifier, DEFAULT_TITLE_TEMPLATE, DEFAULT_BODY_TEMPLATE,
     build_preview_vars, format_grouped_message,
@@ -206,7 +207,8 @@ def run_scan(cfg: dict, notifiers_map: dict[str, BaseNotifier], store: Notificat
             print(body)
         else:
             log.info("Sending notification: %s", title)
-            _dispatch(notifiers_map, primary.subscription.notify_channels, title, body)
+            image_url = build_thumb_url(final_ready[0], cfg)
+            _dispatch(notifiers_map, primary.subscription.notify_channels, title, body, image_url)
             for g in final_ready:
                 desc_hash = None
                 if desc_dedup and g.description and g.description.strip():
@@ -253,7 +255,8 @@ def run_scan(cfg: dict, notifiers_map: dict[str, BaseNotifier], store: Notificat
             print(body)
         else:
             log.info("Sending start notification: %s", title)
-            _dispatch(notifiers_map, primary.subscription.notify_channels, title, body)
+            image_url = build_thumb_url(ready_start[0], cfg)
+            _dispatch(notifiers_map, primary.subscription.notify_channels, title, body, image_url)
             for g in ready_start:
                 store.mark_sent(g.group_uid + ":start", g.subscription.label, now.isoformat())
             sent_count += 1
@@ -263,13 +266,14 @@ def run_scan(cfg: dict, notifiers_map: dict[str, BaseNotifier], store: Notificat
         log.info("Notifications sent: %d", sent_count)
 
 
-def _dispatch(notifiers_map: dict[str, BaseNotifier], sub_channels: list[str], title: str, body: str):
+def _dispatch(notifiers_map: dict[str, BaseNotifier], sub_channels: list[str],
+              title: str, body: str, image_url: str | None = None):
     targets = notifiers_map if not sub_channels else {
         k: v for k, v in notifiers_map.items() if k in sub_channels
     }
     for key, notifier in targets.items():
         try:
-            notifier.send(title, body)
+            notifier.send(title, body, image_url)
         except Exception as exc:
             log.error("Notifier %s failed: %s", key, exc)
 

@@ -9,9 +9,12 @@ class DiscordNotifier(BaseNotifier):
     def __init__(self, webhook_url: str):
         self.webhook_url = webhook_url
 
-    def send(self, title: str, body: str) -> None:
-        safe_title = title.replace("*", "\\*").replace("_", "\\_").replace("`", "\\`")
-        payload = {"content": f"**{safe_title}**\n{body}"}
+    def send(self, title: str, body: str, image_url: str | None = None) -> None:
+        if image_url:
+            payload = {"embeds": [{"title": title, "description": body, "image": {"url": image_url}}]}
+        else:
+            safe_title = title.replace("*", "\\*").replace("_", "\\_").replace("`", "\\`")
+            payload = {"content": f"**{safe_title}**\n{body}"}
         try:
             resp = requests.post(self.webhook_url, json=payload, timeout=15)
             resp.raise_for_status()

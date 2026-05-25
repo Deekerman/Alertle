@@ -10,10 +10,12 @@ class NtfyNotifier(BaseNotifier):
         self.endpoint = f"{url.rstrip('/')}/{topic}"
         self.token = token
 
-    def send(self, title: str, body: str) -> None:
+    def send(self, title: str, body: str, image_url: str | None = None) -> None:
         headers = {"Title": title}
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
+        if image_url:
+            headers["Attach"] = image_url
         try:
             resp = requests.post(self.endpoint, data=body.encode(), headers=headers, timeout=15)
             resp.raise_for_status()

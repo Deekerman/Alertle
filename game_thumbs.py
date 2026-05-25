@@ -37,10 +37,13 @@ def _to_pascal(name: str) -> str:
 
 
 def _build_url(league_code: str, away: str, home: str, image_type: str, style: str) -> str:
-    logo = "true" if image_type == "logo" else "false"
+    if image_type == "cover":
+        filename, logo = "cover.png", "false"
+    else:
+        filename, logo = "logo.png", "true"
     return (
         f"{GAME_THUMBS_BASE}/{league_code}/{away}/{home}"
-        f"/thumb.png?style={style}&logo={logo}&aspect=16-9"
+        f"/{filename}?style={style}&logo={logo}&aspect=16-9"
     )
 
 

@@ -34,6 +34,7 @@ If it works, great. If something breaks, that's also the vibes. PRs are welcome.
 - 🔔 **Multiple notification channels** — Discord, Telegram, and Pushover
 - 🖥️ **Web UI** — clean setup interface, no config files to hand-edit
 - 🔁 **Deduplication** — one alert per game, not ten
+- 🖼️ **[Game-Thumbs](https://github.com/sethwv/game-thumbs) Built in!** — uses the Game-Thumbs hosted instance for game artwork
 
 ---
 
